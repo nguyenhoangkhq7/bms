@@ -1,13 +1,13 @@
 package fit.iuh.controller;
 
 import fit.iuh.config.JwtConfig;
-import fit.iuh.dto.JwtReponse;
-import fit.iuh.dto.UserDto;
+import fit.iuh.dto.response.JwtReponse;
+import fit.iuh.dto.response.UserDto;
 import fit.iuh.mapper.UserMapper;
 import fit.iuh.repository.UserRepository;
 import fit.iuh.service.JwtService;
-import fit.iuh.dto.LoginRequest;
-import fit.iuh.dto.RegisterUserRequest;
+import fit.iuh.dto.request.LoginRequest;
+import fit.iuh.dto.request.RegisterUserRequest;
 import fit.iuh.entity.Address;
 import fit.iuh.entity.Role;
 import fit.iuh.entity.User;
@@ -57,11 +57,11 @@ public class AuthController {
           HttpServletResponse response
    ) {
       manager.authenticate(new UsernamePasswordAuthenticationToken(
-              request.getEmail(),
+              request.getUsername(),
               request.getPassword()
       ));
 
-      var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+      var user = userRepository.findUserByUsername(request.getUsername()).orElseThrow();
 
       String accessToken = jwtService.generateAccessToken(user).toString();
       String refreshToken = jwtService.generateRefreshToken(user).toString();
@@ -86,10 +86,9 @@ public class AuthController {
       if (userRepository.findUserByUsername(request.getUsername()).isPresent()) {
          return ResponseEntity.badRequest().body("Username already exists");
       }
-
       User user = userMapper.toEntity(request);
       user.setPassword(passwordEncoder.encode(request.getPassword()));
-      user.setRole(Role.USER);
+      user.setRole(Role.CUSTOMER);
       user.setStatus("ACTIVE");
       user.setFullName(request.getName());
 
@@ -132,6 +131,18 @@ public class AuthController {
       String accessToken = jwtService.generateAccessToken(user).toString();
 
       return ResponseEntity.ok(new JwtReponse(accessToken));
+   }
+
+   @PostMapping("/logout")
+   public ResponseEntity<Void> logout(HttpServletResponse response) {
+      Cookie cookie = new Cookie("refreshToken", null);
+      cookie.setHttpOnly(true);
+      cookie.setPath("/auth/refresh");
+      cookie.setMaxAge(0);
+      cookie.setSecure(true);
+      response.addCookie(cookie);
+
+      return ResponseEntity.ok().build();
    }
 
    @ExceptionHandler(BadCredentialsException.class)

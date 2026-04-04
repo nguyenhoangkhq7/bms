@@ -1,9 +1,9 @@
 package fit.iuh.controller;
 
-import fit.iuh.dto.ChangePassworRequest;
-import fit.iuh.dto.RegisterUserRequest;
-import fit.iuh.dto.UpdateUserRequest;
-import fit.iuh.dto.UserDto;
+import fit.iuh.dto.request.ChangePassworRequest;
+import fit.iuh.dto.request.RegisterUserRequest;
+import fit.iuh.dto.request.UpdateUserRequest;
+import fit.iuh.dto.response.UserDto;
 import fit.iuh.entity.Role;
 import fit.iuh.entity.User;
 import fit.iuh.repository.UserRepository;
@@ -43,7 +43,7 @@ public class UserController {
 
       User user = userMapper.toEntity(request);
       user.setPassword(passwordEncoder.encode(user.getPassword()));
-      user.setRole(Role.USER);
+      user.setRole(Role.CUSTOMER);
       userRepository.save(user);
       UserDto userDto = userMapper.toDto(user);
       URI uri = uriBuilder.path("/users/{id}").buildAndExpand(user.getId()).toUri();

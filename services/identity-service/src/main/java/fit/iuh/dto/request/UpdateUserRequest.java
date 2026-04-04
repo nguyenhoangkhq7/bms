@@ -1,4 +1,4 @@
-package fit.iuh.dto;
+package fit.iuh.dto.request;
 
 import lombok.Data;
 

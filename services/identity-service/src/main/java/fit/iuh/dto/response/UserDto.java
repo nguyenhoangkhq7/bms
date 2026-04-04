@@ -1,4 +1,4 @@
-package fit.iuh.dto;
+package fit.iuh.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,6 +9,6 @@ import lombok.ToString;
 @ToString
 public class UserDto {
    private Long id;
-   private String name;
-   private String email;
+    private String fullName;
+    private String email;
 }
