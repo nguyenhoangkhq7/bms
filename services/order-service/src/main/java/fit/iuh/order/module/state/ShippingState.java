@@ -1,7 +1,7 @@
 package fit.iuh.order.module.state;
 
 import fit.iuh.order.module.models.Order;
-import fit.iuh.order.module.enums.OrderStatus;
+import fit.iuh.order.module.models.OrderStatus;
 
 public class ShippingState implements OrderState {
     @Override
