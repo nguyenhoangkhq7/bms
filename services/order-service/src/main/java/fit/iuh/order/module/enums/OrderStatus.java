@@ -1,4 +1,4 @@
-package fit.iuh.order.module.models;
+package fit.iuh.order.module.enums;
 
 public enum OrderStatus {
     PENDING,

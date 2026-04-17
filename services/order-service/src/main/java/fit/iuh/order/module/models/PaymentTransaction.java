@@ -1,6 +1,6 @@
 package fit.iuh.order.module.models;
 
-import fit.iuh.order.module.models.PaymentStatus;
+import fit.iuh.order.module.enums.PaymentStatus;
 import fit.iuh.order.module.strategy.PaymentStrategy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
