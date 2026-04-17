@@ -1,4 +1,4 @@
-package fit.iuh.order.module.domain;
+package fit.iuh.order.module.models;
 
 import fit.iuh.order.module.domain.enums.OrderStatus;
 import fit.iuh.order.module.state.OrderState;

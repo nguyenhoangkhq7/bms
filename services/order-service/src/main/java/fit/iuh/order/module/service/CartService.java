@@ -1,7 +1,7 @@
 package fit.iuh.order.module.service;
 
-import fit.iuh.order.module.domain.Cart;
-import fit.iuh.order.module.domain.CartItem;
+import fit.iuh.order.module.models.Cart;
+import fit.iuh.order.module.models.CartItem;
 import fit.iuh.order.module.dto.AddCartItemRequest;
 import fit.iuh.order.module.dto.CartItemResponse;
 import fit.iuh.order.module.dto.CartResponse;

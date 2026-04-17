@@ -1,4 +1,4 @@
-package fit.iuh.order.module.domain;
+package fit.iuh.order.module.models;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,18 +11,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "carts")
+@Table(name = "order_items")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Cart {
+public class OrderItem {
     @Id
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private Long userId;
+    @Column(nullable = false)
+    private Long orderId;
 
     @Column(nullable = false)
-    private BigDecimal totalEstimated;
+    private Long bookId;
+
+    @Column(nullable = false)
+    private BigDecimal priceAtPurchase;
+
+    @Column(nullable = false)
+    private int quantity;
 }

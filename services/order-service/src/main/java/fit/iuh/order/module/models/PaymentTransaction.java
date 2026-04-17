@@ -1,4 +1,4 @@
-package fit.iuh.order.module.domain;
+package fit.iuh.order.module.models;
 
 import fit.iuh.order.module.domain.enums.PaymentStatus;
 import fit.iuh.order.module.strategy.PaymentStrategy;

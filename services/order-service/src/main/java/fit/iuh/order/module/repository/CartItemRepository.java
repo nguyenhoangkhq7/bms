@@ -1,6 +1,6 @@
 package fit.iuh.order.module.repository;
 
-import fit.iuh.order.module.domain.CartItem;
+import fit.iuh.order.module.models.CartItem;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

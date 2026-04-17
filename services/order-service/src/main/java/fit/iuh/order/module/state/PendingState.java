@@ -1,6 +1,6 @@
 package fit.iuh.order.module.state;
 
-import fit.iuh.order.module.domain.Order;
+import fit.iuh.order.module.models.Order;
 import fit.iuh.order.module.domain.enums.OrderStatus;
 
 public class PendingState implements OrderState {
