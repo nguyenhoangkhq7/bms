@@ -1,6 +1,6 @@
 package fit.iuh.order.module.models;
 
-import fit.iuh.order.module.models.OrderStatus;
+import fit.iuh.order.module.models.enums.OrderStatus;
 import fit.iuh.order.module.state.OrderState;
 import fit.iuh.order.module.strategy.NotificationStrategy;
 import jakarta.persistence.Column;

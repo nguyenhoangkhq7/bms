@@ -1,7 +1,7 @@
 package fit.iuh.order.module.state;
 
 import fit.iuh.order.module.models.Order;
-import fit.iuh.order.module.models.OrderStatus;
+import fit.iuh.order.module.models.enums.OrderStatus;
 
 public class PendingState implements OrderState {
     @Override
