@@ -1,4 +1,4 @@
-package fit.iuh.order.module.domain.enums;
+package fit.iuh.order.module.models;
 
 public enum PaymentStatus {
     UNPAID,
