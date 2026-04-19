@@ -3,6 +3,7 @@ package fit.iuh.service;
 import fit.iuh.entity.User;
 import fit.iuh.repository.UserRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
