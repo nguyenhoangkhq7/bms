@@ -12,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/books") // Vẫn dùng đường dẫn gốc của sách
+@CrossOrigin(origins = "http://localhost:5173")
 public class ReviewController {
 
     @Autowired

@@ -1,6 +1,7 @@
 package fit.iuh.order.module.controller;
 
 import fit.iuh.order.module.domain.Book;
+import fit.iuh.order.module.dto.BookRequestDTO;
 import fit.iuh.order.module.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/books")
+@CrossOrigin(origins = "http://localhost:5173")
 public class BookController {
 
     @Autowired
@@ -30,15 +32,14 @@ public class BookController {
 
     // Thêm sách mới (POST /api/books)
     @PostMapping
-    public ResponseEntity<Book> createBook(@RequestBody Book book) {
-        Book createdBook = bookService.createBook(book);
+    public ResponseEntity<Book> createBook(@RequestBody BookRequestDTO requestDTO) {
+        Book createdBook = bookService.createBook(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdBook);
     }
 
-    // Sửa thông tin sách (PUT /api/books/{id})
     @PutMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable Long id, @RequestBody Book bookDetails) {
-        return ResponseEntity.ok(bookService.updateBook(id, bookDetails));
+    public ResponseEntity<Book> updateBook(@PathVariable Long id, @RequestBody BookRequestDTO requestDTO) {
+        return ResponseEntity.ok(bookService.updateBook(id, requestDTO));
     }
 
     // Xoá sách (DELETE /api/books/{id})

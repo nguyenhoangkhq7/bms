@@ -15,6 +15,21 @@ spring:
       hibernate:
         format_sql: true
 
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:5173" # Quan trọng: Phải chỉ định rõ port của React
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS # Bắt buộc phải có để xử lý preflight request
+            allowedHeaders: "*"
+            allowCredentials: true
+
 server:
   port: 8082
 
