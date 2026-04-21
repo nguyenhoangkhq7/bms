@@ -1,3 +1,21 @@
 spring:
   application:
     name: promotion-service
+  datasource:
+    url: ${PROMOTION_DB_URL:jdbc:postgresql://postgres:5432/promotion_db}
+    username: ${PROMOTION_DB_USER:promotion_db}
+    password: ${PROMOTION_DB_PASSWORD:promotion_db}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+flyway:
+  enabled: true
+  baseline-on-migrate: true
+
+server:
+  port: 8084

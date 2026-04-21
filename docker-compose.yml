@@ -42,6 +42,18 @@ services:
       ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
       ORDER_DB_USER: ${ORDER_DB_USER:-order_db}
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_db}
+      IDENTITY_DB_NAME: ${IDENTITY_DB_NAME:-identity_db}
+      IDENTITY_DB_USER: ${IDENTITY_DB_USER:-identity_db}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_db}
+      PRODUCT_DB_NAME: ${PRODUCT_DB_NAME:-product_db}
+      PRODUCT_DB_USER: ${PRODUCT_DB_USER:-product_db}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-product_db}
+      PROMOTION_DB_NAME: ${PROMOTION_DB_NAME:-promotion_db}
+      PROMOTION_DB_USER: ${PROMOTION_DB_USER:-promotion_db}
+      PROMOTION_DB_PASSWORD: ${PROMOTION_DB_PASSWORD:-promotion_db}
+      REPORT_DB_NAME: ${REPORT_DB_NAME:-report_db}
+      REPORT_DB_USER: ${REPORT_DB_USER:-report_db}
+      REPORT_DB_PASSWORD: ${REPORT_DB_PASSWORD:-report_db}
     volumes:
       - ./db/bootstrap-order-db.sh:/bootstrap-order-db.sh
     command: ["sh", "/bootstrap-order-db.sh"]
@@ -165,6 +177,9 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      - BACKEND_API_BASE_URL=http://order-service:8083
+    ports:
+      - "${WEB_APP_PORT:-3000}:3000"
     networks:
       - bookstore-network
   gateway:
