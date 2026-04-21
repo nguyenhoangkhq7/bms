@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({WebMvcConfig.class, CartRateLimitInterceptor.class, CartRateLimiter.class, RequestBodyCacheFilter.class})
 class CartRateLimitIntegrationTest {
     private static final String TOO_MANY_REQUESTS_MESSAGE = "Bạn thao tác quá nhanh, vui lòng đợi một lát.";
+    private static final int CART_REQUESTS_PER_MINUTE_LIMIT = 60;
     private static final String REQUEST_BODY = """
         {
           "userId": 10,
@@ -55,8 +56,8 @@ class CartRateLimitIntegrationTest {
     }
 
     @Test
-    void addProduct_shouldReturn429OnTwentyFirstRequestWithinOneMinute() throws Exception {
-        for (int i = 0; i < 20; i++) {
+    void addProduct_shouldReturn429OnSixtyFirstRequestWithinOneMinute() throws Exception {
+        for (int i = 0; i < CART_REQUESTS_PER_MINUTE_LIMIT; i++) {
             mockMvc.perform(post("/cart/items/add")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(REQUEST_BODY))
@@ -70,6 +71,6 @@ class CartRateLimitIntegrationTest {
             .andExpect(header().exists("Retry-After"))
             .andExpect(jsonPath("$.message").value(TOO_MANY_REQUESTS_MESSAGE));
 
-        verify(cartService, times(20)).addProduct(any());
+        verify(cartService, times(CART_REQUESTS_PER_MINUTE_LIMIT)).addProduct(any());
     }
 }

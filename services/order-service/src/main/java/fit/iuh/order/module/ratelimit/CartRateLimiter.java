@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class CartRateLimiter {
-    private static final long TOKENS_PER_MINUTE = 20;
+    private static final long TOKENS_PER_MINUTE = 60;
     private final Map<Long, Bucket> userBuckets = new ConcurrentHashMap<>();
 
     public RateLimitDecision tryConsume(Long userId) {

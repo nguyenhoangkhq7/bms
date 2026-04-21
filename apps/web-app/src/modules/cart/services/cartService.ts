@@ -1,11 +1,18 @@
 import axios from 'axios'
 import type { AddToCartRequest, CartMutationRequest } from '../types'
+import { getEffectiveUserId } from '../utils/userContext'
 
 // Use Next.js API routes to proxy to backend (avoids CORS + handles auth)
 const ADD_ENDPOINT = '/api/cart/add'
 const GET_ENDPOINT = '/api/cart/get'
 const REMOVE_ENDPOINT = '/api/cart/remove'
 const UPDATE_QTY_ENDPOINT = '/api/cart/update-quantity'
+
+function emitCartChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('cart:changed'))
+  }
+}
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
@@ -29,7 +36,9 @@ function toClientError(e: any) {
 export async function addItem(payload: AddToCartRequest) {
   try {
     const headers = getAuthHeaders()
-    const res = await axios.post(ADD_ENDPOINT, payload, { headers })
+    const uid = payload.userId ?? getEffectiveUserId()
+    const res = await axios.post(ADD_ENDPOINT, { ...payload, userId: uid }, { headers })
+    emitCartChanged()
     return res.data
   } catch (e: any) {
     throw toClientError(e)
@@ -40,8 +49,8 @@ export async function getCart(userId?: number) {
   try {
     const headers = getAuthHeaders()
 
-    // prefer explicit userId; fallback to localStorage userId
-    const uid = userId ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('userId')) : undefined)
+    // prefer explicit userId; fallback to local/mock user context
+    const uid = userId ?? getEffectiveUserId()
     if (!uid) {
       // no user context — return empty cart shape for client
       return { id: null, userId: null, totalEstimated: 0, items: [] }
@@ -58,6 +67,7 @@ export async function removeItem(payload: CartMutationRequest) {
   try {
     const headers = getAuthHeaders()
     const res = await axios.post(REMOVE_ENDPOINT, payload, { headers })
+    emitCartChanged()
     return res.data
   } catch (e: any) {
     throw toClientError(e)
@@ -68,6 +78,7 @@ export async function updateQuantity(payload: CartMutationRequest) {
   try {
     const headers = getAuthHeaders()
     const res = await axios.post(UPDATE_QTY_ENDPOINT, payload, { headers })
+    emitCartChanged()
     return res.data
   } catch (e: any) {
     throw toClientError(e)

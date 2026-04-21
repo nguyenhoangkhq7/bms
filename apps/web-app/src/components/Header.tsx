@@ -1,13 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, Search, ShoppingCart, User, Heart, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { getCart } from '@/src/modules/cart/services/cartService';
+import type { CartItem } from '@/src/modules/cart/types';
 
 export default function Header() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const syncCartCount = async () => {
+      try {
+        const cart = await getCart();
+        const total = (cart?.items ?? []).reduce(
+          (sum: number, item: CartItem) => sum + (item.quantity ?? 0),
+          0
+        );
+        if (mounted) {
+          setCartCount(total);
+        }
+      } catch {
+        if (mounted) {
+          setCartCount(0);
+        }
+      }
+    };
+
+    const onCartChanged = () => {
+      void syncCartCount();
+    };
+
+    void syncCartCount();
+    window.addEventListener('cart:changed', onCartChanged);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('cart:changed', onCartChanged);
+    };
+  }, [pathname]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,10 +120,10 @@ export default function Header() {
               <button className="relative transition-colors hover:text-black">
                 <Heart size={20} />
               </button>
-              <Link href="/" className="relative transition-colors hover:text-black">
+              <Link href="/cart" className="relative transition-colors hover:text-black">
                 <ShoppingCart size={20} />
                 <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[10px] text-white">
-                  3
+                  {cartCount}
                 </span>
               </Link>
               <button className="flex items-center gap-2 transition-colors hover:text-black">

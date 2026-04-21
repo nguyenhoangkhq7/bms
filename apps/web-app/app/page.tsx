@@ -17,8 +17,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { bookService } from '@/src/api/bookService'; 
 import { categoryService } from '@/src/api/categoryService';
+import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
+import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
 import type { Book, Category } from '@/src/types';
 
 // Interface cho danh mục dạng cây (có danh mục con)
@@ -62,6 +65,14 @@ function HomeContent() {
   // State quản lý khoảng giá
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [pendingBookId, setPendingBookId] = useState<number | null>(null);
+  const { addToCart, loading: addToCartLoading } = useAddToCart();
+
+  const clearFilters = () => {
+    setSelectedCategories([]);
+    setMinPrice('');
+    setMaxPrice('');
+  };
 
   // Icon mapping cho các danh mục cha
   const getCategoryIcon = (categoryId: number) => {
@@ -169,14 +180,43 @@ function HomeContent() {
     return matchCategory && matchSearch && matchPrice;
   });
 
+  const hasActiveFilters = selectedCategories.length > 0 || Boolean(minPrice) || Boolean(maxPrice);
+
+  const handleAddToCart = async (bookId: number) => {
+    const userId = getEffectiveUserId();
+    if (!userId) {
+      toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      return;
+    }
+
+    try {
+      setPendingBookId(bookId);
+      await addToCart({ userId, bookId, quantity: 1 });
+    } finally {
+      setPendingBookId(null);
+    }
+  };
+
   return (
-    <div className="w-full px-8 lg:px-20 py-8 flex flex-col md:flex-row gap-8">
+    <div className="min-h-[calc(100vh-84px)] bg-gradient-to-b from-[#f8fafc] via-[#f6f8fc] to-[#eef2f7]">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 md:py-8 lg:px-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       {/* Sidebar Filters */}
-      <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
-        <div className="bg-white p-6 rounded-xl border border-gray-200 sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+      <aside className="w-full lg:sticky lg:top-24 lg:h-fit">
+        <div className="rounded-2xl border border-[#e4e8f0] bg-white/95 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur">
+          <div className="mb-5 flex items-center justify-between gap-3 border-b border-[#eef2f7] pb-4">
+            <h3 className="text-lg font-semibold text-slate-900">Danh mục</h3>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+              >
+                Xoá lọc
+              </button>
+            )}
+          </div>
           
-          <div className="mb-8">
-            <h3 className="font-semibold text-gray-900 mb-4">Danh mục</h3>
+          <div className="mb-7">
             <div className="flex flex-col gap-2">
               {categories.length === 0 ? (
                   <p className="text-sm text-gray-400 italic">Đang tải danh mục...</p>
@@ -186,20 +226,20 @@ function HomeContent() {
                     const isExpanded = expandedCategories.includes(currentId);
                     
                     return (
-                        <div key={currentId} className="border-b border-gray-100 last:border-0 pb-2 mb-2">
+                      <div key={currentId} className="mb-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2 last:mb-0">
                             {/* Nút danh mục cha */}
                             <button 
                                 onClick={() => toggleCategoryExpand(currentId)}
-                                className="w-full flex items-center justify-between text-left group py-1"
+                          className="group flex w-full items-center justify-between py-1 text-left"
                             >
-                                <span className="flex items-center gap-2 text-sm font-medium text-gray-800 group-hover:text-black transition-colors">
-                                    <span className="text-gray-400 group-hover:text-black">
+                          <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors group-hover:text-slate-950">
+                            <span className="text-slate-400 transition-colors group-hover:text-slate-700">
                                         {getCategoryIcon(currentId)}
                                     </span>
                                     {parentCat.name}
                                 </span>
                                 {parentCat.subCategories && parentCat.subCategories.length > 0 && (
-                                    <span className="text-gray-400 group-hover:text-black transition-colors">
+                            <span className="text-slate-400 transition-colors group-hover:text-slate-700">
                                         {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                                     </span>
                                 )}
@@ -208,22 +248,22 @@ function HomeContent() {
                             {/* Danh sách danh mục con */}
                             <div 
                               className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                                isExpanded ? 'max-h-[500px] opacity-100 mt-3' : 'max-h-0 opacity-0'
+                                isExpanded ? 'mt-3 max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
                               }`}
                             >
                               {parentCat.subCategories && parentCat.subCategories.length > 0 && (
-                                  <div className="ml-6 flex flex-col gap-3 pb-2">
+                                  <div className="ml-6 flex flex-col gap-2 pb-1">
                                       {parentCat.subCategories.map((childCat) => {
                                         const childId = childCat.id;
                                         return (
-                                          <label key={childId} className="flex items-center gap-3 cursor-pointer group">
+                                          <label key={childId} className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-slate-100">
                                               <input 
                                                 type="checkbox" 
-                                                className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black cursor-pointer" 
+                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-700" 
                                                 checked={selectedCategories.includes(childId)}
                                                 onChange={() => toggleCategoryFilter(childId)}
                                               />
-                                              <span className="text-sm text-gray-600 group-hover:text-black transition-colors">
+                                              <span className="text-sm text-slate-600 transition-colors group-hover:text-slate-900">
                                                   {childCat.name}
                                               </span>
                                           </label>
@@ -240,22 +280,22 @@ function HomeContent() {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Khoảng giá</h3>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Khoảng giá</h3>
             <div className="flex items-center gap-2">
               <input 
                 type="number" 
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)}
                 placeholder="Từ" 
-                className="w-full p-2 border rounded-md text-sm outline-none focus:border-black" 
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-700" 
               />
-              <span className="text-gray-400">-</span>
+              <span className="text-slate-400">-</span>
               <input 
                 type="number" 
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
                 placeholder="Đến" 
-                className="w-full p-2 border rounded-md text-sm outline-none focus:border-black" 
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-700" 
               />
             </div>
           </div>
@@ -265,22 +305,30 @@ function HomeContent() {
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Banner */}
-        <div className="bg-gray-900 text-white rounded-2xl p-8 mb-8 flex items-center justify-between overflow-hidden relative h-64">
-          <div className="relative z-10 max-w-md">
-            <h1 className="text-3xl md:text-4xl font-serif font-bold mb-4" style={{ color: '#ffffff' }}>Mùa Đọc Sách Thu Đông</h1>
-            <p className="text-gray-300 mb-6">Giảm giá lên đến 30% cho các tác phẩm kinh điển và tiểu thuyết mới nhất.</p>
-            <button className="bg-white text-black px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-colors">Khám phá ngay</button>
+        <div className="relative mb-7 overflow-hidden rounded-3xl border border-[#d7e3ff] bg-gradient-to-r from-[#e9f0ff] via-[#dce9ff] to-[#f4e8ff] p-6 shadow-[0_16px_40px_rgba(59,130,246,0.16)] md:p-8">
+          <div className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#7aa2ff]/20 blur-3xl" />
+          <div className="absolute -right-20 bottom-0 h-56 w-56 rounded-full bg-[#c084fc]/20 blur-3xl" />
+          <div className="relative grid items-center gap-6 md:grid-cols-[1.15fr_0.85fr]">
+          <div className="z-10 max-w-xl">
+            <p className="mb-3 inline-flex rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-600">Bộ sưu tập tháng này</p>
+            <h1 className="mb-4 text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">Mùa đọc sách Thu Đông</h1>
+            <p className="mb-6 text-base text-slate-700 sm:text-lg">Giảm giá đến 30% cho các tác phẩm kinh điển và sách mới phát hành. Cập nhật mỗi tuần để không bỏ lỡ tựa hot.</p>
+            <button className="rounded-full bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800">Khám phá ngay</button>
           </div>
-          <div className="absolute right-0 top-0 w-1/2 h-full opacity-50 md:opacity-100">
+          <div className="relative h-48 overflow-hidden rounded-2xl border border-white/60 shadow-[0_12px_26px_rgba(15,23,42,0.18)] sm:h-56 md:h-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=1000&auto=format&fit=crop" alt="Banner" className="w-full h-full object-cover" />
+            <img src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=1200&auto=format&fit=crop" alt="Kệ sách" className="h-full w-full object-cover" />
+          </div>
           </div>
         </div>
 
         {/* Toolbar */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold font-serif" style={{ color: '#111827' }}>Sách Mới Nổi Bật</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-black">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Sách nổi bật</h2>
+            <p className="mt-1 text-sm text-slate-500">Hiển thị {filteredBooks.length} / {books.length} đầu sách</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm">
             <span>Sắp xếp theo: Mới nhất</span>
             <ChevronDown size={16} />
           </div>
@@ -288,53 +336,67 @@ function HomeContent() {
 
         {/* Render danh sách sách / Trạng thái */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/80 py-20">
             <Loader2 className="w-10 h-10 animate-spin text-gray-500 mb-4" />
             <p className="text-gray-500">Đang tải danh sách sách...</p>
           </div>
         ) : error ? (
-          <div className="bg-red-50 text-red-500 p-4 rounded-xl border border-red-100 text-center">
+          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-center text-red-500">
             {error}
           </div>
         ) : filteredBooks.length === 0 ? (
-          <div className="text-center py-20 text-gray-500 bg-white rounded-xl border border-gray-200">
-            Không tìm thấy cuốn sách nào trong danh mục đã chọn.
+          <div className="rounded-2xl border border-slate-200 bg-white/90 px-6 py-16 text-center shadow-sm">
+            <p className="text-lg font-semibold text-slate-700">Không tìm thấy cuốn sách phù hợp</p>
+            <p className="mt-2 text-sm text-slate-500">Hãy đổi bộ lọc hoặc khoảng giá để xem thêm kết quả.</p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="mt-5 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Xoá bộ lọc
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
             {filteredBooks.map((book) => {
               const bookId = book.id;
               return (
-                <Link href={`/detail/${bookId}`} key={bookId} className="group bg-white p-4 rounded-xl border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col relative">
+                <Link href={`/detail/${bookId}`} key={bookId} className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] sm:p-4">
                   
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <div className="w-full aspect-[2/3] overflow-hidden rounded-md mb-4 bg-gray-100 relative flex items-center justify-center">
+                  <div className="relative mb-4 flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-xl bg-slate-100">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={book.image || book.imageUrl || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800&auto=format&fit=crop"} 
                       alt={book.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
                     />
-                    <div className="absolute bottom-0 left-0 w-full p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                    <div className="absolute bottom-0 left-0 w-full translate-y-full p-2 transition-transform duration-300 group-hover:translate-y-0">
                       <button onClick={(e) => {
                         e.preventDefault();
-                        alert(`Đã thêm "${book.title}" vào giỏ hàng`);
-                      }} className="w-full bg-black/90 text-white py-2 rounded-md text-sm font-semibold hover:bg-black backdrop-blur-sm">Thêm giỏ hàng</button>
+                        void handleAddToCart(bookId);
+                      }}
+                      disabled={addToCartLoading && pendingBookId === bookId}
+                      className="w-full rounded-md bg-slate-900/90 py-2 text-sm font-semibold text-white backdrop-blur-sm hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {addToCartLoading && pendingBookId === bookId ? 'Đang thêm...' : 'Thêm giỏ hàng'}
+                      </button>
                     </div>
                   </div>
                   
                   <div className="flex flex-col flex-1">
-                    <h3 className="font-bold text-base line-clamp-2 leading-tight mb-1" style={{ color: '#111827' }}>{book.title}</h3>
-                    <p className="text-gray-500 text-xs mb-2">{book.author}</p>
+                    <h3 className="mb-1 line-clamp-2 text-sm font-bold leading-tight text-slate-900 sm:text-base">{book.title}</h3>
+                    <p className="mb-2 text-xs text-slate-500">{book.author}</p>
                     
-                    <div className="flex items-center gap-1 mb-3">
+                    <div className="mb-3 flex items-center gap-1">
                       <Star size={14} fill="#facc15" stroke="none" />
-                      <span className="text-xs font-medium text-gray-700">{String(book.rating ?? "5.0")}</span>
-                      <span className="text-xs text-gray-400">({String(book.reviews?.length ?? "0")})</span>
+                      <span className="text-xs font-medium text-slate-700">{String(book.rating ?? "5.0")}</span>
+                      <span className="text-xs text-slate-400">({String(book.reviews?.length ?? "0")})</span>
                     </div>
                     
                     <div className="mt-auto flex items-end gap-2">
-                      <span className="font-bold text-lg text-gray-900">
+                      <span className="text-base font-bold text-slate-900 sm:text-lg">
                         {typeof book.price === 'number' ? `${book.price.toLocaleString('vi-VN')} đ` : book.price}
                       </span>
                     </div>
@@ -345,6 +407,8 @@ function HomeContent() {
           </div>
         )}
       </main>
+      </div>
+      </div>
     </div>
   );
 }

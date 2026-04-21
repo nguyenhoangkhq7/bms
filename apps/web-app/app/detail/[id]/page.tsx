@@ -3,7 +3,10 @@
 import { Star, ShoppingCart, Heart, ChevronRight, User, Send, BookOpen, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { bookService } from '@/src/api/bookService';
+import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
+import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
 import type { Book } from '@/src/types';
 
 interface ReviewItem {
@@ -28,6 +31,7 @@ export default function DetailPage() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const { addToCart, loading: addToCartLoading } = useAddToCart();
 
   // LOAD DATA
   useEffect(() => {
@@ -112,6 +116,20 @@ export default function DetailPage() {
   const avgRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : 0;
+
+  const handleAddToCart = async () => {
+    const userId = getEffectiveUserId();
+    if (!userId || !book?.id) {
+      toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      return;
+    }
+
+    await addToCart({
+      userId,
+      bookId: book.id,
+      quantity,
+    });
+  };
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 20px 60px' }}>
@@ -406,6 +424,8 @@ export default function DetailPage() {
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
+                onClick={() => void handleAddToCart()}
+                disabled={addToCartLoading}
                 style={{
                   flex: 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
@@ -414,11 +434,13 @@ export default function DetailPage() {
                   color: '#fff',
                   border: 'none', borderRadius: '12px',
                   fontSize: '16px', fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: addToCartLoading ? 'not-allowed' : 'pointer',
+                  opacity: addToCartLoading ? 0.7 : 1,
                   boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={e => {
+                  if (addToCartLoading) return;
                   (e.target as HTMLElement).style.transform = 'translateY(-2px)';
                   (e.target as HTMLElement).style.boxShadow = '0 6px 20px rgba(124, 58, 237, 0.45)';
                 }}
@@ -428,7 +450,7 @@ export default function DetailPage() {
                 }}
               >
                 <ShoppingCart size={20} />
-                Thêm vào giỏ hàng
+                {addToCartLoading ? 'Đang thêm...' : 'Thêm vào giỏ hàng'}
               </button>
 
               <button
