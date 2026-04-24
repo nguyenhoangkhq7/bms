@@ -1,3 +1,24 @@
 spring:
   application:
     name: identity-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/identity_db}
+    username: ${SPRING_DATASOURCE_USERNAME:identity_db}
+    password: ${SPRING_DATASOURCE_PASSWORD:identity_db}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  jwt:
+    secret: jumcRJ6yoVkOhtpMkiAOdC8jY5/ATCbeDAI5Taw/eQ8=
+    accessTokenExpiration: 7200
+    refreshTokenExpiration: 604800
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
