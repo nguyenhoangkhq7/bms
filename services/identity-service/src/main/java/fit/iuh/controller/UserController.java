@@ -1,6 +1,6 @@
 package fit.iuh.controller;
 
-import fit.iuh.dto.request.ChangePassworRequest;
+import fit.iuh.dto.request.ChangePasswordRequest;
 import fit.iuh.dto.request.RegisterUserRequest;
 import fit.iuh.dto.request.UpdateUserRequest;
 import fit.iuh.dto.response.UserDto;
@@ -8,12 +8,12 @@ import fit.iuh.entity.Role;
 import fit.iuh.entity.User;
 import fit.iuh.repository.UserRepository;
 import fit.iuh.mapper.UserMapper;
+import fit.iuh.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -28,7 +28,8 @@ import java.util.Set;
 public class UserController {
    private final UserRepository userRepository;
    private final UserMapper userMapper;
-   private final BCryptPasswordEncoder passwordEncoder;
+   private final PasswordEncoder passwordEncoder;
+   private final AuthService authService;
 
    @PostMapping
    public ResponseEntity<?> registerUser(
@@ -92,18 +93,11 @@ public class UserController {
       return ResponseEntity.noContent().build();
    }
 
-   @PostMapping("/{id}/change-password")
+   @PutMapping("/password")
    public ResponseEntity<Void> changePassword(
-      @PathVariable Long id,
-      @RequestBody ChangePassworRequest request
+      @Valid @RequestBody ChangePasswordRequest request
    ) {
-      User user = userRepository.findById(id).orElse(null);
-      if(user==null) return ResponseEntity.notFound().build();
-      if(!user.getPassword().equals(request.getOldPassword())) {
-         return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-      }
-      user.setPassword(request.getNewPassword());
-      userRepository.save(user);
+      authService.changePassword(request);
       return ResponseEntity.noContent().build();
    }
 }
