@@ -43,7 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cachedUser = localStorage.getItem("user");
 
       if (token && cachedUser) {
-        setUser(JSON.parse(cachedUser));
+        const parsedUser = JSON.parse(cachedUser) as UserProfile;
+        setUser(parsedUser);
+        localStorage.setItem("userId", String(parsedUser.id));
+        localStorage.setItem("authMode", "real");
       } else {
         setUser(null);
       }
@@ -65,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch user profile
         const userProfile = await authApi.me();
         localStorage.setItem("user", JSON.stringify(userProfile));
+        localStorage.setItem("userId", String(userProfile.id));
+        localStorage.setItem("authMode", "real");
         setUser(userProfile);
       } catch (err: any) {
         const errorMessage =
@@ -90,6 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch user profile
         const userProfile = await authApi.me();
         localStorage.setItem("user", JSON.stringify(userProfile));
+        localStorage.setItem("userId", String(userProfile.id));
+        localStorage.setItem("authMode", "real");
         setUser(userProfile);
       } catch (err: any) {
         const errorMessage =
@@ -114,6 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("authMode");
       setUser(null);
       setIsLoading(false);
     }
