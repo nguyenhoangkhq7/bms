@@ -68,7 +68,6 @@ services:
     restart: on-failure
     depends_on:
       postgres:
-<<<<<<< HEAD
         condition: service_healthy
     deploy:
       resources:
@@ -76,9 +75,6 @@ services:
           memory: 768M    # Spring Boot chạy ổn ở mức này nếu không quá nặng
         reservations:
           memory: 512M
-=======
-        condition: service_started
->>>>>>> b0a3058935b712ec5bdee0fc297310acef60be6e
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/identity_db
       - SPRING_DATASOURCE_USERNAME=identity_db
@@ -94,15 +90,11 @@ services:
     restart: on-failure
     depends_on:
       postgres:
-<<<<<<< HEAD
         condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 768M
-=======
-        condition: service_started
->>>>>>> b0a3058935b712ec5bdee0fc297310acef60be6e
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product_db
       - SPRING_DATASOURCE_USERNAME=product_db
@@ -118,7 +110,6 @@ services:
     restart: on-failure
     depends_on:
       postgres:
-<<<<<<< HEAD
         condition: service_healthy
       db-bootstrap:
         condition: service_completed_successfully
@@ -126,9 +117,6 @@ services:
       resources:
         limits:
           memory: 768M
-=======
-        condition: service_started
->>>>>>> b0a3058935b712ec5bdee0fc297310acef60be6e
     environment:
       - ORDER_DB_URL=${ORDER_DB_URL:-jdbc:postgresql://postgres:5432/order_db}
       - ORDER_DB_USER=${ORDER_DB_USER:-order_db}
