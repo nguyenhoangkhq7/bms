@@ -21,6 +21,16 @@ public class Jwt {
       return Long.parseLong(claims.getSubject());
    }
 
+   /** Lấy JWT ID (jti) – dùng làm khóa cho blacklist */
+   public String getJtiFromToken() {
+      return claims.getId();
+   }
+
+   /** Lấy thời điểm hết hạn của token */
+   public java.util.Date getExpirationFromToken() {
+      return claims.getExpiration();
+   }
+
    public Role getRoleFromToken() {
       return Role.valueOf(claims.get("role").toString());
    }

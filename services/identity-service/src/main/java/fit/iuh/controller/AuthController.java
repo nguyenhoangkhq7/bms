@@ -5,6 +5,7 @@ import fit.iuh.dto.response.JwtReponse;
 import fit.iuh.dto.response.UserDto;
 import fit.iuh.mapper.UserMapper;
 import fit.iuh.repository.UserRepository;
+import fit.iuh.service.AuthService;
 import fit.iuh.service.JwtService;
 import fit.iuh.dto.request.LoginRequest;
 import fit.iuh.dto.request.RegisterUserRequest;
@@ -12,6 +13,7 @@ import fit.iuh.entity.Address;
 import fit.iuh.entity.Role;
 import fit.iuh.entity.User;
 import fit.iuh.repository.AddressRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import jakarta.servlet.http.Cookie;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
    private final AuthenticationManager manager;
    private final JwtService jwtService;
+   private final AuthService authService;
    private final UserRepository userRepository;
    private final JwtConfig jwtConfig;
    private final UserMapper userMapper;
@@ -134,7 +137,18 @@ public class AuthController {
    }
 
    @PostMapping("/logout")
-   public ResponseEntity<Void> logout(HttpServletResponse response) {
+   public ResponseEntity<Void> logout(
+           HttpServletRequest request,
+           HttpServletResponse response
+   ) {
+      // 1. Blacklist access token hiện tại
+      String authHeader = request.getHeader("Authorization");
+      if (authHeader != null && authHeader.startsWith("Bearer ")) {
+         String rawToken = authHeader.replace("Bearer ", "");
+         authService.logout(rawToken);
+      }
+
+      // 2. Xóa refresh token cookie
       Cookie cookie = new Cookie("refreshToken", null);
       cookie.setHttpOnly(true);
       cookie.setPath("/auth/refresh");

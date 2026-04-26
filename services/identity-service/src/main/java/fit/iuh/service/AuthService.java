@@ -1,7 +1,9 @@
 package fit.iuh.service;
 
 import fit.iuh.dto.request.ChangePasswordRequest;
+import fit.iuh.entity.InvalidatedToken;
 import fit.iuh.entity.User;
+import fit.iuh.repository.InvalidatedTokenRepository;
 import fit.iuh.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,14 +17,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthService {
    private final UserRepository userRepository;
    private final PasswordEncoder passwordEncoder;
+   private final JwtService jwtService;
+   private final InvalidatedTokenRepository invalidatedTokenRepository;
 
    public User getCurrentUser() {
       var authentication = SecurityContextHolder.getContext().getAuthentication();
-       assert authentication != null;
-       var userId = (Long) authentication.getPrincipal();
-
-       assert userId != null;
-       return userRepository.findById(userId).orElseThrow();
+      assert authentication != null;
+      var userId = (Long) authentication.getPrincipal();
+      assert userId != null;
+      return userRepository.findById(userId).orElseThrow();
    }
 
    public void changePassword(ChangePasswordRequest request) {
@@ -42,4 +45,30 @@ public class AuthService {
       user.setPassword(passwordEncoder.encode(request.getNewPassword()));
       userRepository.save(user);
    }
+
+   /**
+    * Logout: parse access token, lưu jti vào bảng blacklist.
+    * @param rawToken chuỗi JWT thô (không có "Bearer " prefix)
+    */
+   public void logout(String rawToken) {
+      Jwt jwt = jwtService.parseToken(rawToken);
+
+      if (jwt == null || jwt.isExpirated()) {
+         // Token đã hết hạn tự nhiên → không cần blacklist
+         return;
+      }
+
+      String jti = jwt.getJtiFromToken();
+      if (jti == null) {
+         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token does not contain a valid jti");
+      }
+
+      // Lưu vào blacklist
+      InvalidatedToken invalidated = InvalidatedToken.builder()
+              .id(jti)
+              .expiryTime(jwt.getExpirationFromToken())
+              .build();
+      invalidatedTokenRepository.save(invalidated);
+   }
 }
+
