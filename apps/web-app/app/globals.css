@@ -46,8 +46,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-<<<<<<< HEAD
-=======
 /* Custom colors for TailwindCSS */
 @layer base {
   .bg-cream {
@@ -63,4 +61,3 @@ body {
     @apply bg-[#1F4788] hover:bg-[#2C5AA0] text-white;
   }
 }
->>>>>>> e2df7d97f756621fb95d37380e2acba42abbb2c2

@@ -466,7 +466,6 @@ export default function HomePage() {
               <h4 className="font-semibold text-purple-900 mb-2">Profile</h4>
               <p className="text-sm text-[#1F4788]">Manage your profile</p>
             </Link>
->>>>>>> e2df7d97f756621fb95d37380e2acba42abbb2c2
           </div>
         </div>
 
