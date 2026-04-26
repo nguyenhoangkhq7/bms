@@ -1,17 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpen, Search, ShoppingCart, User, Heart, PlusCircle } from 'lucide-react';
+import {
+  BookOpen,
+  Search,
+  ShoppingCart,
+  User,
+  Heart,
+  PlusCircle,
+  LogOut,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getCart } from '@/src/modules/cart/services/cartService';
 import type { CartItem } from '@/src/modules/cart/types';
+import { useAuth } from '@/src/auth/context';
 
 export default function Header() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
   const pathname = usePathname();
+  const { user, isSignedIn, logout, isLoading } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -21,7 +31,7 @@ export default function Header() {
         const cart = await getCart();
         const total = (cart?.items ?? []).reduce(
           (sum: number, item: CartItem) => sum + (item.quantity ?? 0),
-          0
+          0,
         );
         if (mounted) {
           setCartCount(total);
@@ -55,11 +65,22 @@ export default function Header() {
     }
   };
 
+  const handleAuthClick = async () => {
+    if (isLoading) return;
+
+    if (!isSignedIn) {
+      router.push('/auth/login');
+      return;
+    }
+
+    await logout();
+    router.push('/auth/login');
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-[#f6f5f3]/95 backdrop-blur">
       <div className="flex w-full flex-col items-center justify-between gap-4 px-8 py-4 lg:flex-row lg:gap-8 lg:px-20">
         <div className="flex w-full flex-1 items-center justify-between gap-3 lg:gap-8">
-
           <Link
             href="/"
             className="flex items-center gap-2 text-xl font-bold text-gray-900 sm:text-2xl"
@@ -68,15 +89,21 @@ export default function Header() {
             <span className="font-serif">BookHaven</span>
           </Link>
 
-          <form onSubmit={handleSearch} className="relative hidden flex-1 max-w-2xl lg:block">
+          <form
+            onSubmit={handleSearch}
+            className="relative hidden max-w-2xl flex-1 lg:block"
+          >
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
+              placeholder="Tim kiem sach, tac gia, nha xuat ban..."
               className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
             />
-            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black">
+            <button
+              type="submit"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+            >
               <Search size={20} />
             </button>
           </form>
@@ -84,10 +111,10 @@ export default function Header() {
           <nav className="flex items-center gap-3 text-gray-700 sm:gap-5">
             <div className="hidden items-center gap-6 text-sm font-medium xl:flex">
               <Link href="/" className="transition-colors hover:text-black">
-                Trang chủ
+                Trang chu
               </Link>
               <Link href="/" className="transition-colors hover:text-black">
-                Danh mục
+                Danh muc
               </Link>
               <Link
                 href="/add-book"
@@ -100,19 +127,19 @@ export default function Header() {
                   fontSize: '13px',
                   fontWeight: '600',
                   boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
                 }}
-                onMouseEnter={e => {
+                onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-1px)';
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.4)';
                 }}
-                onMouseLeave={e => {
+                onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.3)';
                 }}
               >
                 <PlusCircle size={16} />
-                Thêm sách
+                Them sach
               </Link>
             </div>
 
@@ -126,9 +153,15 @@ export default function Header() {
                   {cartCount}
                 </span>
               </Link>
-              <button className="flex items-center gap-2 transition-colors hover:text-black">
-                <User size={20} />
-                <span className="hidden text-sm font-medium sm:block">Đăng nhập</span>
+              <button
+                onClick={handleAuthClick}
+                disabled={isLoading}
+                className="flex items-center gap-2 transition-colors hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSignedIn ? <LogOut size={20} /> : <User size={20} />}
+                <span className="hidden text-sm font-medium sm:block">
+                  {isSignedIn ? `Thoat (${user?.username ?? 'user'})` : 'Dang nhap'}
+                </span>
               </button>
             </div>
           </nav>
@@ -139,10 +172,13 @@ export default function Header() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
+            placeholder="Tim kiem sach, tac gia, nha xuat ban..."
             className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
           />
-          <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black">
+          <button
+            type="submit"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+          >
             <Search size={20} />
           </button>
         </form>

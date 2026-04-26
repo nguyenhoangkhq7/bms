@@ -321,6 +321,9 @@ function HomeContent() {
           </div>
         </div>
       </div>
+      </main>
+        </div>
+      </div>
     </div>
   );
 }
