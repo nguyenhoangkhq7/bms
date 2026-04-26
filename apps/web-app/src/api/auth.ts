@@ -18,6 +18,23 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordConfirmRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordWithOtpRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface AuthResponse {
   token: string;
 }
@@ -68,6 +85,42 @@ export const authApi = {
   logout: async (): Promise<void> => {
     try {
       await httpClient.post("/auth/logout");
+    } catch (error: any) {
+      throw error?.response?.data || error;
+    }
+  },
+
+  sendForgotPasswordOtp: async (data: ForgotPasswordRequest): Promise<void> => {
+    try {
+      await httpClient.post("/auth/forgot-password/send-otp", data);
+    } catch (error: any) {
+      throw error?.response?.data || error;
+    }
+  },
+
+  confirmForgotPassword: async (
+    data: ForgotPasswordConfirmRequest,
+  ): Promise<void> => {
+    try {
+      await httpClient.post("/auth/forgot-password/confirm", data);
+    } catch (error: any) {
+      throw error?.response?.data || error;
+    }
+  },
+
+  sendChangePasswordOtp: async (): Promise<void> => {
+    try {
+      await httpClient.post("/auth/change-password/send-otp");
+    } catch (error: any) {
+      throw error?.response?.data || error;
+    }
+  },
+
+  confirmChangePassword: async (
+    data: ChangePasswordWithOtpRequest,
+  ): Promise<void> => {
+    try {
+      await httpClient.post("/auth/change-password/confirm", data);
     } catch (error: any) {
       throw error?.response?.data || error;
     }
