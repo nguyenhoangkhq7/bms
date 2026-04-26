@@ -4,7 +4,7 @@ set -e
 create_user_and_database() {
     local database=$1
     echo "  Creating user and database '$database'"
-
+    
     # Khối 1: Vẫn giữ nguyên (Tạo DB và User)
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
         CREATE USER $database WITH PASSWORD '$database';

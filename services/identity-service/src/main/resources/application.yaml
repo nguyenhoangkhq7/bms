@@ -5,17 +5,20 @@ spring:
     url: ${IDENTITY_DB_URL:jdbc:postgresql://postgres:5432/identity_db}
     username: ${IDENTITY_DB_USER:identity_db}
     password: ${IDENTITY_DB_PASSWORD:identity_db}
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-flyway:
-  enabled: true
-  baseline-on-migrate: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  jwt:
+    secret: jumcRJ6yoVkOhtpMkiAOdC8jY5/ATCbeDAI5Taw/eQ8=
+    accessTokenExpiration: 7200
+    refreshTokenExpiration: 604800
 
 server:
-  port: 8082
+  port: 8080
+  servlet:
+    context-path: /

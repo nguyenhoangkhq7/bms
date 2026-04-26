@@ -1,19 +1,40 @@
 @import "tailwindcss";
 
+/* Color Palette */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f5f0e8;
+  --foreground: #1a1a1a;
+
+  /* Light Mode */
+  --color-cream: #f5f0e8;
+  --color-cream-very-light: #fdfbf7;
+  --color-beige-dark: #d4c4b0;
+  --color-text-dark: #1a1a1a;
+  --color-royal-blue: #1f4788;
+  --color-royal-blue-light: #2c5aa0;
+  --color-success: #4ade80;
+  --color-error: #f87171;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-cream: #f5f0e8;
+  --color-beige: #d4c4b0;
+  --color-royal-blue: #1f4788;
   --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Consolas", "SFMono-Regular", "Menlo", monospace;
 }
 
 * {
   box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #2a2420;
+    --foreground: #f5f0e8;
+  }
 }
 
 body {
@@ -25,3 +46,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+<<<<<<< HEAD
+=======
+/* Custom colors for TailwindCSS */
+@layer base {
+  .bg-cream {
+    @apply bg-[#F5F0E8];
+  }
+  .bg-beige {
+    @apply bg-[#D4C4B0];
+  }
+  .text-dark {
+    @apply text-[#1a1a1a];
+  }
+  .btn-royal {
+    @apply bg-[#1F4788] hover:bg-[#2C5AA0] text-white;
+  }
+}
+>>>>>>> e2df7d97f756621fb95d37380e2acba42abbb2c2
