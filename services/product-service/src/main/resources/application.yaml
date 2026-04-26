@@ -1,9 +1,23 @@
-server:
-  port: 8080
 spring:
   application:
     name: product-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/product_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: ${PRODUCT_DB_URL:jdbc:postgresql://postgres:5432/product_db}
+    username: ${PRODUCT_DB_USER:product_db}
+    password: ${PRODUCT_DB_PASSWORD:product_db}
+
+  sql:
+    init:
+      mode: always
+
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8082

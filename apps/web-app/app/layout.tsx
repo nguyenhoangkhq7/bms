@@ -1,21 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from 'react-hot-toast'
+import Header from "@/src/components/Header";
+import Footer from "@/src/components/Footer";
 import { AuthProvider } from "@/src/auth/context";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "BMS - Book Management System",
-  description: "Book Management System Application",
+  title: "BookHaven – Quản lý sách",
+  description: "Nơi lưu giữ những cuốn sách hay. Quản lý, tìm kiếm và khám phá bộ sưu tập sách của bạn.",
 };
 
 export default function RootLayout({
@@ -24,11 +16,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="vi">
+      <body className="min-h-screen bg-[#f6f5f3] font-sans text-gray-900 flex flex-col">
+        <Toaster position="top-right" />
+        <AuthProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );

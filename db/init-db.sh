@@ -12,7 +12,7 @@ create_user_and_database() {
         GRANT ALL PRIVILEGES ON DATABASE $database TO $database;
 EOSQL
 
-    # Khối 2: THÊM ĐOẠN NÀY VÀO! 
+    # Khối 2: THÊM ĐOẠN NÀY VÀO!
     # Kết nối trực tiếp vào database vừa tạo (--dbname "$database") để cấp quyền Schema
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$database" <<-EOSQL
         GRANT ALL ON SCHEMA public TO $database;

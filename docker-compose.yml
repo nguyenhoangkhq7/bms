@@ -8,6 +8,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: defaultdb
       POSTGRES_MULTIPLE_DATABASES: "identity_db,product_db,order_db,promotion_db,report_db"
+      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
+      ORDER_DB_USER: ${ORDER_DB_USER:-order_db}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_db}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -20,6 +23,42 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G      # Vì gánh 5 DB con nên cần khoảng 1GB
+        reservations:
+          memory: 256M
+  db-bootstrap:
+    image: postgres:${POSTGRES_VERSION:-16}
+    container_name: db-bootstrap
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
+      ORDER_DB_USER: ${ORDER_DB_USER:-order_db}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_db}
+      IDENTITY_DB_NAME: ${IDENTITY_DB_NAME:-identity_db}
+      IDENTITY_DB_USER: ${IDENTITY_DB_USER:-identity_db}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_db}
+      PRODUCT_DB_NAME: ${PRODUCT_DB_NAME:-product_db}
+      PRODUCT_DB_USER: ${PRODUCT_DB_USER:-product_db}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-product_db}
+      PROMOTION_DB_NAME: ${PROMOTION_DB_NAME:-promotion_db}
+      PROMOTION_DB_USER: ${PROMOTION_DB_USER:-promotion_db}
+      PROMOTION_DB_PASSWORD: ${PROMOTION_DB_PASSWORD:-promotion_db}
+      REPORT_DB_NAME: ${REPORT_DB_NAME:-report_db}
+      REPORT_DB_USER: ${REPORT_DB_USER:-report_db}
+      REPORT_DB_PASSWORD: ${REPORT_DB_PASSWORD:-report_db}
+    volumes:
+      - ./db/bootstrap-order-db.sh:/bootstrap-order-db.sh
+    command: ["sh", "/bootstrap-order-db.sh"]
+    networks:
+      - bookstore-network
   identity-service:
     build:
       context: ./services/identity-service
@@ -30,6 +69,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M    # Spring Boot chạy ổn ở mức này nếu không quá nặng
+        reservations:
+          memory: 512M
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/identity_db
       - SPRING_DATASOURCE_USERNAME=identity_db
@@ -46,6 +91,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product_db
       - SPRING_DATASOURCE_USERNAME=product_db
@@ -62,10 +111,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-bootstrap:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order_db
-      - SPRING_DATASOURCE_USERNAME=order_db
-      - SPRING_DATASOURCE_PASSWORD=order_db
+      - ORDER_DB_URL=${ORDER_DB_URL:-jdbc:postgresql://postgres:5432/order_db}
+      - ORDER_DB_USER=${ORDER_DB_USER:-order_db}
+      - ORDER_DB_PASSWORD=${ORDER_DB_PASSWORD:-order_db}
     networks:
       - bookstore-network
   promotion-service:
@@ -78,6 +133,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/promotion_db
       - SPRING_DATASOURCE_USERNAME=promotion_db
@@ -94,6 +153,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/report_db
       - SPRING_DATASOURCE_USERNAME=report_db
@@ -107,11 +170,16 @@ services:
     image: ${WEB_APP_IMAGE:-web-app:latest}
     container_name: web-app
     restart: unless-stopped
-    ports:
-      - "${WEB_APP_PORT:-3000}:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 256M    # Thường là Nodejs/React, tốn ít RAM hơn Java
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      - BACKEND_API_BASE_URL=http://order-service:8083
+    ports:
+      - "${WEB_APP_PORT:-3000}:3000"
     networks:
       - bookstore-network
   gateway:
@@ -130,6 +198,10 @@ services:
       - promotion-service
       - report-service
       - web-app
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     networks:
       - bookstore-network
 volumes:

@@ -1,9 +1,20 @@
-server:
-  port: 8080
 spring:
   application:
     name: order-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/order_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    url: ${ORDER_DB_URL:jdbc:postgresql://postgres:5432/order_db}
+    username: ${ORDER_DB_USER:order_db}
+    password: ${ORDER_DB_PASSWORD:order_db}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+server:
+  port: 8083
