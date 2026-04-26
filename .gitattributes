@@ -1,0 +1,5 @@
+# Đảm bảo tất cả shell scripts luôn dùng LF (Unix) khi commit và checkout
+*.sh text eol=lf
+
+# Các file text khác giữ nguyên theo platform
+* text=auto

@@ -7,9 +7,13 @@ import fit.iuh.mapper.UserMapper;
 import fit.iuh.repository.UserRepository;
 import fit.iuh.service.AuthService;
 import fit.iuh.service.JwtService;
+import fit.iuh.dto.request.ChangePasswordWithOtpRequest;
+import fit.iuh.dto.request.ForgotPasswordConfirmRequest;
+import fit.iuh.dto.request.ForgotPasswordRequest;
 import fit.iuh.dto.request.LoginRequest;
 import fit.iuh.dto.request.RegisterUserRequest;
 import fit.iuh.entity.Address;
+import java.util.Map;
 import fit.iuh.entity.Role;
 import fit.iuh.entity.User;
 import fit.iuh.repository.AddressRepository;
@@ -71,7 +75,7 @@ public class AuthController {
 
       var cookie = new Cookie("refreshToken", refreshToken);
       cookie.setHttpOnly(true);
-      cookie.setPath("/auth/refresh");
+      cookie.setPath("/api/v1/identity/auth");
       cookie.setMaxAge(jwtConfig.getRefreshTokenExpiration());
       cookie.setSecure(true);
       response.addCookie(cookie);
@@ -111,7 +115,7 @@ public class AuthController {
 
       Cookie cookie = new Cookie("refreshToken", refreshToken);
       cookie.setHttpOnly(true);
-      cookie.setPath("/auth/refresh");
+      cookie.setPath("/api/v1/identity/auth");
       cookie.setMaxAge(jwtConfig.getRefreshTokenExpiration());
       cookie.setSecure(true);
       response.addCookie(cookie);
@@ -124,7 +128,8 @@ public class AuthController {
            @CookieValue(name = "refreshToken") String token
    ) {
       var jwt = jwtService.parseToken(token);
-      if(jwt.isExpirated()) {
+      // SỬA: Phải check isTokenValid (bao gồm cả blacklist) chứ không chỉ mỗi hết hạn
+      if(jwt == null || !jwtService.isTokenValid(jwt)) {
          return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
       }
 
@@ -139,24 +144,58 @@ public class AuthController {
    @PostMapping("/logout")
    public ResponseEntity<Void> logout(
            HttpServletRequest request,
-           HttpServletResponse response
+           HttpServletResponse response,
+           @CookieValue(name = "refreshToken", required = false) String refreshToken
    ) {
-      // 1. Blacklist access token hiện tại
       String authHeader = request.getHeader("Authorization");
+
+      // 1. Blacklist access token hiện tại nếu có
       if (authHeader != null && authHeader.startsWith("Bearer ")) {
          String rawToken = authHeader.replace("Bearer ", "");
          authService.logout(rawToken);
       }
 
-      // 2. Xóa refresh token cookie
+      // 2. Blacklist luôn refresh token nếu có
+      if (refreshToken != null) {
+         authService.logout(refreshToken);
+      }
+
+      // 3. Luôn thực hiện xóa cookie ở phía client (Dù token có hay không)
       Cookie cookie = new Cookie("refreshToken", null);
       cookie.setHttpOnly(true);
-      cookie.setPath("/auth/refresh");
+      cookie.setPath("/api/v1/identity/auth");
       cookie.setMaxAge(0);
       cookie.setSecure(true);
       response.addCookie(cookie);
 
       return ResponseEntity.ok().build();
+   }
+
+
+   @PostMapping("/forgot-password/send-otp")
+   public ResponseEntity<?> sendForgotPasswordOtp(@Valid @RequestBody ForgotPasswordRequest request) {
+      authService.sendForgotPasswordOtp(request);
+      return ResponseEntity.ok(Map.of("message", "Mã OTP đã được gửi đến email của bạn"));
+   }
+
+   @PostMapping("/forgot-password/confirm")
+   public ResponseEntity<?> confirmForgotPassword(@Valid @RequestBody ForgotPasswordConfirmRequest request) {
+      authService.confirmForgotPassword(request);
+      return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công"));
+   }
+
+   // Gửi OTP để xác nhận đổi mật khẩu (cần đăng nhập)
+   @PostMapping("/change-password/send-otp")
+   public ResponseEntity<?> sendChangePasswordOtp() {
+      authService.sendChangePasswordOtp();
+      return ResponseEntity.ok(Map.of("message", "Mã OTP đã được gửi đến email của bạn"));
+   }
+
+   // Xác nhận đổi mật khẩu với OTP
+   @PostMapping("/change-password/confirm")
+   public ResponseEntity<?> confirmChangePassword(@Valid @RequestBody ChangePasswordWithOtpRequest request) {
+      authService.confirmChangePassword(request);
+      return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công"));
    }
 
    @ExceptionHandler(BadCredentialsException.class)

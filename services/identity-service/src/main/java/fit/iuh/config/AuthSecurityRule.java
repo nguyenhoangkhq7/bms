@@ -13,6 +13,12 @@ public class AuthSecurityRule implements SecurityRules{
               .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
               .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
               .requestMatchers(HttpMethod.POST, "/auth/logout").permitAll()
-              .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll();
+              .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
+              // Quên mật khẩu: Không cần đăng nhập
+              .requestMatchers(HttpMethod.POST, "/auth/forgot-password/send-otp").permitAll()
+              .requestMatchers(HttpMethod.POST, "/auth/forgot-password/confirm").permitAll()
+              // Đổi mật khẩu: Cần đăng nhập
+              .requestMatchers(HttpMethod.POST, "/auth/change-password/send-otp").authenticated()
+              .requestMatchers(HttpMethod.POST, "/auth/change-password/confirm").authenticated();
    }
 }
