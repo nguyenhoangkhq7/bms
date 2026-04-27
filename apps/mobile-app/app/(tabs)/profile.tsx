@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { userApi, UserProfileDetail } from "@/src/api/user";
 import { Colors } from "@/constants/theme";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
   const { user, logout, isLoading } = useAuth();
@@ -24,6 +25,14 @@ export default function ProfileScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const [profile, setProfile] = useState<UserProfileDetail | null>(null);
   const [isFetchingProfile, setIsFetchingProfile] = useState(true);
+  const fullAddress = [
+    profile?.streetAddress,
+    profile?.ward,
+    profile?.district,
+    profile?.cityProvince,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const loadProfile = useCallback(async () => {
     try {
@@ -58,134 +67,165 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView
+    <SafeAreaView
+      edges={["top"]}
       style={[
         styles.container,
         { backgroundColor: isDark ? "#1a1a1a" : "#f6f5f3" },
       ]}
     >
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          {profile?.avatarUrl ? (
-            <Image
-              source={{ uri: profile.avatarUrl }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <Ionicons
-              name="person-circle"
-              size={100}
-              color={isDark ? "#fff" : "#1F4788"}
-            />
-          )}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View
+          style={[
+            styles.header,
+            { borderBottomColor: isDark ? "#444" : "#ddd" },
+          ]}
+        >
+          <View style={styles.avatarContainer}>
+            {profile?.avatarUrl ? (
+              <Image
+                source={{ uri: profile.avatarUrl }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Ionicons
+                name="person-circle"
+                size={100}
+                color={isDark ? "#fff" : "#1F4788"}
+              />
+            )}
+          </View>
+          <Text style={[styles.userName, { color: isDark ? "#fff" : "#000" }]}>
+            {profile?.fullName || user?.fullName || user?.username || ""}
+          </Text>
+          <Text style={[styles.userEmail, { color: isDark ? "#aaa" : "#666" }]}>
+            {profile?.email || user?.email || ""}
+          </Text>
         </View>
-        <Text style={[styles.userName, { color: isDark ? "#fff" : "#000" }]}>
-          {profile?.fullName || user?.fullName || user?.username || ""}
-        </Text>
-        <Text style={[styles.userEmail, { color: isDark ? "#aaa" : "#666" }]}>
-          {profile?.email || user?.email || ""}
-        </Text>
-      </View>
 
-      {isFetchingProfile && (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="small" color={colors.tint} />
-        </View>
-      )}
+        {isFetchingProfile && (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={colors.tint} />
+          </View>
+        )}
 
-      {profile && (
-        <View style={styles.infoCardWrap}>
-          <View
+        {profile && (
+          <View style={styles.infoCardWrap}>
+            <View
+              style={[
+                styles.infoCard,
+                { backgroundColor: isDark ? "#2a2a2a" : "#fff" },
+              ]}
+            >
+              <Text
+                style={[styles.infoRow, { color: isDark ? "#ddd" : "#333" }]}
+              >
+                Username: {profile.username || "-"}
+              </Text>
+              <Text
+                style={[styles.infoRow, { color: isDark ? "#ddd" : "#333" }]}
+              >
+                Phone: {profile.phoneNumber || "-"}
+              </Text>
+              <Text
+                style={[styles.infoRow, { color: isDark ? "#ddd" : "#333" }]}
+              >
+                Date of Birth: {profile.dateOfBirth || "-"}
+              </Text>
+              <Text
+                style={[styles.infoRow, { color: isDark ? "#ddd" : "#333" }]}
+              >
+                Address: {fullAddress || "-"}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text
+            style={[styles.sectionTitle, { color: isDark ? "#888" : "#999" }]}
+          >
+            ACCOUNT SETTINGS
+          </Text>
+
+          <TouchableOpacity
             style={[
-              styles.infoCard,
+              styles.menuItem,
+              { backgroundColor: isDark ? "#2a2a2a" : "#fff", marginBottom: 8 },
+            ]}
+            onPress={() => router.push("/profile/edit" as any)}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons
+                name="create-outline"
+                size={22}
+                color={isDark ? "#fff" : "#000"}
+              />
+              <Text
+                style={[
+                  styles.menuItemText,
+                  { color: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                Edit Profile
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.menuItem,
               { backgroundColor: isDark ? "#2a2a2a" : "#fff" },
             ]}
+            onPress={() => router.push("/profile/change-password" as any)}
           >
-            <Text style={[styles.infoRow, { color: isDark ? "#ddd" : "#333" }]}>
-              Phone: {profile.phoneNumber || "-"}
-            </Text>
-            <Text style={[styles.infoRow, { color: isDark ? "#ddd" : "#333" }]}>
-              Address: {profile.streetAddress || "-"}
-            </Text>
-          </View>
+            <View style={styles.menuItemLeft}>
+              <Ionicons
+                name="key-outline"
+                size={22}
+                color={isDark ? "#fff" : "#000"}
+              />
+              <Text
+                style={[
+                  styles.menuItemText,
+                  { color: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                Change Password
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
         </View>
-      )}
 
-      <View style={styles.section}>
-        <Text
-          style={[styles.sectionTitle, { color: isDark ? "#888" : "#999" }]}
-        >
-          ACCOUNT SETTINGS
-        </Text>
-
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            { backgroundColor: isDark ? "#2a2a2a" : "#fff", marginBottom: 8 },
-          ]}
-          onPress={() => router.push("/profile/edit" as any)}
-        >
-          <View style={styles.menuItemLeft}>
-            <Ionicons
-              name="create-outline"
-              size={22}
-              color={isDark ? "#fff" : "#000"}
-            />
-            <Text
-              style={[styles.menuItemText, { color: isDark ? "#fff" : "#000" }]}
-            >
-              Edit Profile
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            { backgroundColor: isDark ? "#2a2a2a" : "#fff" },
-          ]}
-          onPress={() => router.push("/profile/change-password" as any)}
-        >
-          <View style={styles.menuItemLeft}>
-            <Ionicons
-              name="key-outline"
-              size={22}
-              color={isDark ? "#fff" : "#000"}
-            />
-            <Text
-              style={[styles.menuItemText, { color: isDark ? "#fff" : "#000" }]}
-            >
-              Change Password
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <TouchableOpacity
-          style={[
-            styles.logoutButton,
-            { backgroundColor: isDark ? "#2a2a2a" : "#fff" },
-          ]}
-          onPress={handleLogout}
-          disabled={isLoading}
-        >
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[
+              styles.logoutButton,
+              { backgroundColor: isDark ? "#2a2a2a" : "#fff" },
+            ]}
+            onPress={handleLogout}
+            disabled={isLoading}
+          >
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  scrollContent: { paddingBottom: 30 },
   header: {
     alignItems: "center",
-    paddingVertical: 40,
+    paddingVertical: 28,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#ddd",
   },
   avatarContainer: { marginBottom: 16 },
   avatarImage: { width: 100, height: 100, borderRadius: 50 },
