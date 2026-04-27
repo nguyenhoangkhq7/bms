@@ -6,6 +6,17 @@ const API_BASE_URL =
 class ApiClient {
   private instance: AxiosInstance;
 
+  private isNonRefreshableAuthEndpoint(url?: string) {
+    if (!url) return false;
+    return (
+      url.includes("/auth/login") ||
+      url.includes("/auth/register") ||
+      url.includes("/auth/refresh") ||
+      url.includes("/auth/logout") ||
+      url.includes("/auth/forgot-password")
+    );
+  }
+
   constructor() {
     this.instance = axios.create({
       baseURL: API_BASE_URL,
@@ -41,7 +52,7 @@ class ApiClient {
         if (
           error.response?.status === 401 &&
           !originalRequest._retry &&
-          !originalRequest.url?.includes("/auth/")
+          !this.isNonRefreshableAuthEndpoint(originalRequest.url)
         ) {
           originalRequest._retry = true;
 

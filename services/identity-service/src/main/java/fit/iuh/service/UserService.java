@@ -1,7 +1,6 @@
 package fit.iuh.service;
 
 import fit.iuh.dto.request.UpdateAddressRequest;
-import fit.iuh.dto.request.UpdateAvatarRequest;
 import fit.iuh.dto.request.UpdateProfileRequest;
 import fit.iuh.dto.response.UserProfileResponse;
 import fit.iuh.entity.Address;
@@ -64,17 +63,18 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
-    public void updateProfile(Long userId, UpdateProfileRequest request) {
+    public UserProfileResponse updateProfile(Long userId, UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         
         user.setFullName(request.getFullName());
         user.setDateOfBirth(request.getDateOfBirth());
         userRepository.save(user);
+        return getProfile(userId);
     }
 
     @Transactional
-    public void updateAddress(Long userId, UpdateAddressRequest request) {
+    public UserProfileResponse updateAddress(Long userId, UpdateAddressRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         
@@ -90,12 +90,22 @@ public class UserService implements UserDetailsService {
         address.setCityProvince(request.getCityProvince());
         
         addressRepository.save(address);
+        return getProfile(userId);
     }
 
     @Transactional
-    public void updateAvatar(Long userId, MultipartFile file) {
+    public UserProfileResponse updateAvatar(Long userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Avatar file is required");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only image files are allowed");
+        }
         
         // 1. Xóa ảnh cũ nếu có
         if (user.getAvatarUrl() != null) {
@@ -106,5 +116,20 @@ public class UserService implements UserDetailsService {
         String avatarUrl = s3Service.uploadFile(file, "avatars");
         user.setAvatarUrl(avatarUrl);
         userRepository.save(user);
+        return getProfile(userId);
+    }
+
+    @Transactional
+    public UserProfileResponse removeAvatar(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (user.getAvatarUrl() != null) {
+            s3Service.deleteFile(user.getAvatarUrl());
+            user.setAvatarUrl(null);
+            userRepository.save(user);
+        }
+
+        return getProfile(userId);
     }
 }

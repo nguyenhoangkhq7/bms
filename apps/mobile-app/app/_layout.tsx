@@ -21,11 +21,18 @@ const RootLayoutContent = () => {
     if (!isLoading && !isSignedIn) {
       router.replace("/auth/login");
     }
-  }, [isSignedIn, isLoading]);
+  }, [isSignedIn, isLoading, router]);
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#fff" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colorScheme === "dark" ? "#1a1a1a" : "#fff",
+        }}
+      >
         <ActivityIndicator size="large" color="#1F4788" />
       </View>
     );
@@ -36,8 +43,15 @@ const RootLayoutContent = () => {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="profile/change-password" options={{ headerShown: true, title: "Change Password" }} />
-        <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
+        <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="profile/change-password"
+          options={{ headerShown: true, title: "Change Password" }}
+        />
+        <Stack.Screen
+          name="modal"
+          options={{ presentation: "modal", title: "Modal" }}
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

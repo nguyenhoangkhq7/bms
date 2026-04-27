@@ -183,7 +183,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Forgot Password Link */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.forgotPassword}
             onPress={() => router.push("/auth/forgot-password" as any)}
           >
@@ -196,7 +196,7 @@ export default function LoginScreen() {
         {/* Footer */}
         <View style={styles.footerContainer}>
           <Text style={{ color: isDark ? "#aaa" : "#666" }}>
-            Don't have an account?{" "}
+            Do not have an account?{" "}
           </Text>
           <TouchableOpacity onPress={() => router.push("/auth/register")}>
             <Text style={{ color: colors.tint, fontWeight: "700" }}>
@@ -302,6 +302,3 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 });
-
-
-
