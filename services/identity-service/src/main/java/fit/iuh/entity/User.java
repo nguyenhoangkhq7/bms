@@ -50,6 +50,9 @@ public class User implements UserDetails { // 1. Bắt buộc implements interfa
     @Column(name = "otp_code", length = 6)
     private String otpCode;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     // ==========================================
     // CÁC HÀM CỦA USERDETAILS CẦN CÓ
     // ==========================================
