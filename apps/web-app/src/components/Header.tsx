@@ -161,8 +161,8 @@ export default function Header() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Link 
-                      href="/profile/change-password" 
-                      title="Đổi mật khẩu"
+                      href="/profile" 
+                      title="Hồ sơ cá nhân"
                       className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600 hover:text-[#1F4788]"
                     >
                       <User size={20} />

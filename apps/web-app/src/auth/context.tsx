@@ -127,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Logout error:", err);
     } finally {
       localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
       localStorage.removeItem("userId");
       localStorage.removeItem("authMode");

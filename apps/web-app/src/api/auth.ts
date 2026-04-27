@@ -36,7 +36,8 @@ export interface ChangePasswordWithOtpRequest {
 }
 
 export interface AuthResponse {
-  token: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface UserProfile {
@@ -53,7 +54,10 @@ export const authApi = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
       const response = await httpClient.post<AuthResponse>("/auth/login", data);
-      apiClient.setAccessToken(response.data.token);
+      apiClient.setTokens(
+        response.data.accessToken,
+        response.data.refreshToken,
+      );
       return response.data;
     } catch (error: any) {
       throw error?.response?.data || error;
@@ -66,7 +70,10 @@ export const authApi = {
         "/auth/register",
         data,
       );
-      apiClient.setAccessToken(response.data.token);
+      apiClient.setTokens(
+        response.data.accessToken,
+        response.data.refreshToken,
+      );
       return response.data;
     } catch (error: any) {
       throw error?.response?.data || error;
