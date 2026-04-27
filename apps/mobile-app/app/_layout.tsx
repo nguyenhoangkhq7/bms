@@ -46,7 +46,7 @@ const RootLayoutContent = () => {
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
         <Stack.Screen
           name="profile/change-password"
-          options={{ headerShown: true, title: "Change Password" }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="modal"
