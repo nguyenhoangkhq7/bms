@@ -1,7 +1,8 @@
 package fit.iuh.controller;
 
 import fit.iuh.config.JwtConfig;
-import fit.iuh.dto.response.JwtReponse;
+import fit.iuh.dto.request.RefreshTokenRequest;
+import fit.iuh.dto.response.JwtResponse;
 import fit.iuh.dto.response.UserDto;
 import fit.iuh.mapper.UserMapper;
 import fit.iuh.repository.UserRepository;
@@ -59,7 +60,7 @@ public class AuthController {
 
 
    @PostMapping("/login")
-   public ResponseEntity<JwtReponse> login(
+   public ResponseEntity<JwtResponse> login(
           @RequestBody LoginRequest request,
           HttpServletResponse response
    ) {
@@ -79,7 +80,7 @@ public class AuthController {
       cookie.setMaxAge(jwtConfig.getRefreshTokenExpiration());
       cookie.setSecure(true);
       response.addCookie(cookie);
-      return ResponseEntity.ok(new JwtReponse(accessToken));
+      return ResponseEntity.ok(new JwtResponse(accessToken, refreshToken));
    }
 
    @PostMapping("/register")
@@ -120,15 +121,17 @@ public class AuthController {
       cookie.setSecure(true);
       response.addCookie(cookie);
 
-      return ResponseEntity.ok(new JwtReponse(accessToken));
+      return ResponseEntity.ok(new JwtResponse(accessToken, refreshToken));
    }
 
    @PostMapping("/refresh")
-   public ResponseEntity<JwtReponse> refresh(
-           @CookieValue(name = "refreshToken") String token
+   public ResponseEntity<JwtResponse> refresh(
+           @RequestBody @Valid RefreshTokenRequest request,
+           HttpServletResponse response
    ) {
+      String token = request.getRefreshToken();
       var jwt = jwtService.parseToken(token);
-      // SỬA: Phải check isTokenValid (bao gồm cả blacklist) chứ không chỉ mỗi hết hạn
+
       if(jwt == null || !jwtService.isTokenValid(jwt)) {
          return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
       }
@@ -137,8 +140,17 @@ public class AuthController {
       var user = userRepository.findById(id).orElseThrow();
 
       String accessToken = jwtService.generateAccessToken(user).toString();
+      String refreshToken = jwtService.generateRefreshToken(user).toString();
 
-      return ResponseEntity.ok(new JwtReponse(accessToken));
+      // Cập nhật lại cookie cho Web App
+      Cookie cookie = new Cookie("refreshToken", refreshToken);
+      cookie.setHttpOnly(true);
+      cookie.setPath("/api/v1/identity/auth");
+      cookie.setMaxAge(jwtConfig.getRefreshTokenExpiration());
+      cookie.setSecure(true);
+      response.addCookie(cookie);
+
+      return ResponseEntity.ok(new JwtResponse(accessToken, refreshToken));
    }
 
    @PostMapping("/logout")
