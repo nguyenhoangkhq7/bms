@@ -141,6 +141,9 @@ export default function Header() {
                 <PlusCircle size={16} />
                 Them sach
               </Link>
+              <Link href="/admin/vouchers" className="transition-colors hover:text-black">
+                Voucher
+              </Link>
             </div>
 
             <div className="flex items-center gap-3 border-l border-gray-300 pl-3 sm:gap-5 sm:pl-5">

@@ -5,6 +5,7 @@ const configuredBase = process.env.BACKEND_API_BASE_URL
 const BACKEND_BASE_CANDIDATES = configuredBase
   ? [configuredBase]
   : ['http://order-service:8083', 'http://localhost:8083']
+  : ['http://order-service:8083', 'http://localhost:8083']
 
 export async function POST(req: NextRequest) {
   try {
