@@ -8,9 +8,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: defaultdb
       POSTGRES_MULTIPLE_DATABASES: "identity_db,product_db,order_db,promotion_db,report_db"
-      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
-      ORDER_DB_USER: ${ORDER_DB_USER:-order_db}
-      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_db}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -26,39 +23,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G      # Vì gánh 5 DB con nên cần khoảng 1GB
+          memory: 1G
         reservations:
           memory: 256M
-  db-bootstrap:
-    image: postgres:${POSTGRES_VERSION:-16}
-    container_name: db-bootstrap
-    restart: "no"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      ORDER_DB_NAME: ${ORDER_DB_NAME:-order_db}
-      ORDER_DB_USER: ${ORDER_DB_USER:-order_db}
-      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_db}
-      IDENTITY_DB_NAME: ${IDENTITY_DB_NAME:-identity_db}
-      IDENTITY_DB_USER: ${IDENTITY_DB_USER:-identity_db}
-      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_db}
-      PRODUCT_DB_NAME: ${PRODUCT_DB_NAME:-product_db}
-      PRODUCT_DB_USER: ${PRODUCT_DB_USER:-product_db}
-      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-product_db}
-      PROMOTION_DB_NAME: ${PROMOTION_DB_NAME:-promotion_db}
-      PROMOTION_DB_USER: ${PROMOTION_DB_USER:-promotion_db}
-      PROMOTION_DB_PASSWORD: ${PROMOTION_DB_PASSWORD:-promotion_db}
-      REPORT_DB_NAME: ${REPORT_DB_NAME:-report_db}
-      REPORT_DB_USER: ${REPORT_DB_USER:-report_db}
-      REPORT_DB_PASSWORD: ${REPORT_DB_PASSWORD:-report_db}
-    volumes:
-      - ./db/bootstrap-order-db.sh:/bootstrap-order-db.sh
-    command: ["sh", "/bootstrap-order-db.sh"]
-    networks:
-      - bookstore-network
+
   identity-service:
     build:
       context: ./services/identity-service
@@ -72,15 +40,22 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M    # Spring Boot chạy ổn ở mức này nếu không quá nặng
+          memory: 768M
         reservations:
           memory: 512M
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/identity_db
       - SPRING_DATASOURCE_USERNAME=identity_db
       - SPRING_DATASOURCE_PASSWORD=identity_db
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
     networks:
       - bookstore-network
+
   product-service:
     build:
       context: ./services/product-service
@@ -101,6 +76,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=product_db
     networks:
       - bookstore-network
+
   order-service:
     build:
       context: ./services/order-service
@@ -111,8 +87,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      db-bootstrap:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -123,6 +97,7 @@ services:
       - ORDER_DB_PASSWORD=${ORDER_DB_PASSWORD:-order_db}
     networks:
       - bookstore-network
+
   promotion-service:
     build:
       context: ./services/promotion-service
@@ -143,6 +118,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=promotion_db
     networks:
       - bookstore-network
+
   report-service:
     build:
       context: ./services/report-service
@@ -163,6 +139,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=report_db
     networks:
       - bookstore-network
+
   web-app:
     build:
       context: ./apps/web-app
@@ -173,7 +150,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M    # Thường là Nodejs/React, tốn ít RAM hơn Java
+          memory: 256M
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
@@ -182,6 +159,7 @@ services:
       - "${WEB_APP_PORT:-3000}:3000"
     networks:
       - bookstore-network
+
   gateway:
     build:
       context: ./gateway
@@ -204,6 +182,7 @@ services:
           memory: 512M
     networks:
       - bookstore-network
+
 volumes:
   postgres_data:
     driver: local

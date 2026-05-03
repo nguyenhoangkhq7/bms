@@ -6,6 +6,17 @@ const API_BASE_URL =
 class ApiClient {
   private instance: AxiosInstance;
 
+  private isNonRefreshableAuthEndpoint(url?: string) {
+    if (!url) return false;
+    return (
+      url.includes("/auth/login") ||
+      url.includes("/auth/register") ||
+      url.includes("/auth/refresh") ||
+      url.includes("/auth/logout") ||
+      url.includes("/auth/forgot-password")
+    );
+  }
+
   constructor() {
     this.instance = axios.create({
       baseURL: API_BASE_URL,
@@ -20,7 +31,11 @@ class ApiClient {
     this.instance.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem("access_token");
-        if (token) {
+        if (
+          token &&
+          !config.url?.includes("/auth/login") &&
+          !config.url?.includes("/auth/register")
+        ) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -34,19 +49,34 @@ class ApiClient {
       async (error: AxiosError) => {
         const originalRequest = error.config as any;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !this.isNonRefreshableAuthEndpoint(originalRequest.url)
+        ) {
           originalRequest._retry = true;
 
           try {
-            const refreshResponse = await this.instance.post("/auth/refresh");
-            const { token } = refreshResponse.data;
+            const storedRefreshToken = localStorage.getItem("refresh_token");
+            if (!storedRefreshToken) {
+              throw new Error("No refresh token found");
+            }
 
-            localStorage.setItem("access_token", token);
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+            const refreshResponse = await this.instance.post("/auth/refresh", {
+              refreshToken: storedRefreshToken,
+            });
+            const { accessToken, refreshToken } = refreshResponse.data as {
+              accessToken: string;
+              refreshToken: string;
+            };
+
+            this.setTokens(accessToken, refreshToken);
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return this.instance(originalRequest);
           } catch (refreshError) {
             // Refresh failed, clear tokens and redirect to login
             localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
             localStorage.removeItem("user");
             // Redirect to login
             window.location.href = "/auth/login";
@@ -61,6 +91,11 @@ class ApiClient {
 
   setAccessToken(token: string) {
     localStorage.setItem("access_token", token);
+  }
+
+  setTokens(accessToken: string, refreshToken: string) {
+    localStorage.setItem("access_token", accessToken);
+    localStorage.setItem("refresh_token", refreshToken);
   }
 
   getClient() {

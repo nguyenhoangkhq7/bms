@@ -153,16 +153,42 @@ export default function Header() {
                   {cartCount}
                 </span>
               </Link>
-              <button
-                onClick={handleAuthClick}
-                disabled={isLoading}
-                className="flex items-center gap-2 transition-colors hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSignedIn ? <LogOut size={20} /> : <User size={20} />}
-                <span className="hidden text-sm font-medium sm:block">
-                  {isSignedIn ? `Thoat (${user?.username ?? 'user'})` : 'Dang nhap'}
-                </span>
-              </button>
+              {isSignedIn ? (
+                <div className="flex items-center gap-4">
+                  <div className="hidden flex-col items-end sm:flex">
+                    <span className="text-xs text-gray-500">Xin chào,</span>
+                    <span className="text-sm font-bold text-gray-900">{user?.fullName || user?.username}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link 
+                      href="/profile" 
+                      title="Hồ sơ cá nhân"
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600 hover:text-[#1F4788]"
+                    >
+                      <User size={20} />
+                    </Link>
+                    <button
+                      onClick={logout}
+                      disabled={isLoading}
+                      title="Thoát"
+                      className="p-2 rounded-full hover:bg-red-50 transition-colors text-gray-600 hover:text-red-600 disabled:opacity-60"
+                    >
+                      <LogOut size={20} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAuthClick}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 transition-colors hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <User size={20} />
+                  <span className="hidden text-sm font-medium sm:block">
+                    Dang nhap
+                  </span>
+                </button>
+              )}
             </div>
           </nav>
         </div>
