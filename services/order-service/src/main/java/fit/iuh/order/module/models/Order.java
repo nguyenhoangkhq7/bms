@@ -48,6 +48,9 @@ public class Order {
     @Column(nullable = false)
     private Double shippingLongitude;
 
+    @Column(name = "created_at", nullable = false)
+    private java.time.OffsetDateTime createdAt = java.time.OffsetDateTime.now();
+
     @Transient
     private NotificationStrategy notiStrategy;
 

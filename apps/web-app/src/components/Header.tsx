@@ -144,6 +144,9 @@ export default function Header() {
               <Link href="/admin/vouchers" className="transition-colors hover:text-black">
                 Voucher
               </Link>
+              <Link href="/admin/reports" className="transition-colors hover:text-black">
+                Thong ke
+              </Link>
             </div>
 
             <div className="flex items-center gap-3 border-l border-gray-300 pl-3 sm:gap-5 sm:pl-5">
