@@ -154,9 +154,8 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
-      - BACKEND_API_BASE_URL=http://order-service:8083
     ports:
-      - "${WEB_APP_PORT:-3000}:3000"
+      - "3000:3000"
     networks:
       - bookstore-network
 
