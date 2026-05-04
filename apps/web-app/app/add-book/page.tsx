@@ -505,14 +505,17 @@ export default function AddBookPage() {
                 accept="image/*"
                 id="cover-file-input"
                 style={{ display: 'none' }}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setForm(prev => ({ ...prev, imageUrl: reader.result as string }));
-                    };
-                    reader.readAsDataURL(file);
+                    try {
+                      const uploadedUrl = await bookImageService.uploadImage(file);
+                      if (uploadedUrl) {
+                        setForm(prev => ({ ...prev, imageUrl: uploadedUrl }));
+                      }
+                    } catch (error) {
+                      console.error("Lỗi upload ảnh:", error);
+                    }
                   }
                 }}
               />
@@ -582,16 +585,19 @@ export default function AddBookPage() {
                     accept="image/*"
                     id={`secondary-file-${index}`}
                     style={{ display: 'none' }}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          const updated = [...secondaryImages];
-                          updated[index] = reader.result as string;
-                          setSecondaryImages(updated);
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                          const uploadedUrl = await bookImageService.uploadImage(file);
+                          if (uploadedUrl) {
+                            const updated = [...secondaryImages];
+                            updated[index] = uploadedUrl;
+                            setSecondaryImages(updated);
+                          }
+                        } catch (error) {
+                          console.error("Lỗi upload ảnh phụ:", error);
+                        }
                       }
                     }}
                   />
