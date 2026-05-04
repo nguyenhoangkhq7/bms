@@ -1,4 +1,4 @@
-package fit.iuh.order.module.dto;
+package fit.iuh.order.module.cart_management.dto;
 
 public record CartItemResponse(
     Long id,

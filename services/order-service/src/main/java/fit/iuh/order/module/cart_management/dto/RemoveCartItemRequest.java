@@ -1,4 +1,4 @@
-package fit.iuh.order.module.dto;
+package fit.iuh.order.module.cart_management.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

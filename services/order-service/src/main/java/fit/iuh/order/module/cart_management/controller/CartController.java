@@ -1,20 +1,15 @@
-package fit.iuh.order.module.controller;
+package fit.iuh.order.module.cart_management.controller;
 
-import fit.iuh.order.module.dto.AddCartItemRequest;
+import fit.iuh.order.module.cart_management.dto.AddCartItemRequest;
 import fit.iuh.order.module.dto.ApiResponse;
-import fit.iuh.order.module.dto.CartResponse;
-import fit.iuh.order.module.dto.RemoveCartItemRequest;
-import fit.iuh.order.module.dto.UpdateCartItemQuantityRequest;
-import fit.iuh.order.module.service.CartService;
+import fit.iuh.order.module.cart_management.dto.CartResponse;
+import fit.iuh.order.module.cart_management.dto.RemoveCartItemRequest;
+import fit.iuh.order.module.cart_management.dto.UpdateCartItemQuantityRequest;
+import fit.iuh.order.module.cart_management.service.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/cart")

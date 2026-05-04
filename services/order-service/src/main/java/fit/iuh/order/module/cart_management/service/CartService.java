@@ -1,16 +1,16 @@
-package fit.iuh.order.module.service;
+package fit.iuh.order.module.cart_management.service;
 
 import fit.iuh.order.module.models.Cart;
 import fit.iuh.order.module.models.CartItem;
-import fit.iuh.order.module.dto.AddCartItemRequest;
-import fit.iuh.order.module.dto.CartItemResponse;
-import fit.iuh.order.module.dto.CartResponse;
-import fit.iuh.order.module.dto.RemoveCartItemRequest;
-import fit.iuh.order.module.dto.UpdateCartItemQuantityRequest;
+import fit.iuh.order.module.cart_management.dto.AddCartItemRequest;
+import fit.iuh.order.module.cart_management.dto.CartItemResponse;
+import fit.iuh.order.module.cart_management.dto.CartResponse;
+import fit.iuh.order.module.cart_management.dto.RemoveCartItemRequest;
+import fit.iuh.order.module.cart_management.dto.UpdateCartItemQuantityRequest;
 import fit.iuh.order.module.exception.BadRequestException;
 import fit.iuh.order.module.exception.NotFoundException;
-import fit.iuh.order.module.repository.CartItemRepository;
-import fit.iuh.order.module.repository.CartRepository;
+import fit.iuh.order.module.cart_management.repository.CartItemRepository;
+import fit.iuh.order.module.cart_management.repository.CartRepository;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;

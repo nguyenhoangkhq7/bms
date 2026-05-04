@@ -1,4 +1,4 @@
-package fit.iuh.order.module.repository;
+package fit.iuh.order.module.cart_management.repository;
 
 import fit.iuh.order.module.models.CartItem;
 import java.util.List;

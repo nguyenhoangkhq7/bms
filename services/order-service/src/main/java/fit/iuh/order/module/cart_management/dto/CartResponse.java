@@ -1,4 +1,4 @@
-package fit.iuh.order.module.dto;
+package fit.iuh.order.module.cart_management.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
