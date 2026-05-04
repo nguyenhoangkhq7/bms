@@ -3,7 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080/api";
+  process.env.EXPO_PUBLIC_API_URL || "http://localhost/api/v1/identity";
 
 class ApiClient {
   private instance: AxiosInstance;

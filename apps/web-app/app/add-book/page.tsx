@@ -118,12 +118,15 @@ export default function AddBookPage() {
       };
 
       // Step 1: Create book
+      console.log('[ADD-BOOK] Submitting book data:', bookData);
       const createdBook = await bookService.createBook(bookData as never);
+      console.log('[ADD-BOOK] Book created successfully:', createdBook);
 
       // Step 2: Add secondary images one by one via POST /api/books/{bookId}/images
       const validSecondaryImages = secondaryImages.filter(url => url.trim());
 
       if (validSecondaryImages.length > 0 && createdBook?.id) {
+        console.log('[ADD-BOOK] Adding', validSecondaryImages.length, 'secondary images');
         for (const imgUrl of validSecondaryImages) {
           await bookImageService.addImageToBook(createdBook.id, imgUrl.trim());
         }
@@ -135,10 +138,12 @@ export default function AddBookPage() {
       setSelectedParentCat('');
       setSelectedChildCat('');
 
-      // Redirect after success
-      setTimeout(() => router.push('/'), 2000);
+      // Redirect after success with a cache-busting token so the home page refetches books.
+      const redirectUrl = `/?updated=${Date.now()}`;
+      console.log('[ADD-BOOK] Redirecting to:', redirectUrl);
+      setTimeout(() => router.push(redirectUrl), 2000);
     } catch (err: unknown) {
-      console.error('Lỗi tạo sách:', err);
+      console.error('[ADD-BOOK] Error creating book:', err);
       setError((err as Error).message || 'Có lỗi xảy ra khi thêm sách. Vui lòng thử lại.');
     } finally {
       setLoading(false);
