@@ -98,7 +98,7 @@ export default function Header() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tim kiem sach, tac gia, nha xuat ban..."
+              placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
               className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
             />
             <button
@@ -111,15 +111,15 @@ export default function Header() {
 
           <nav className="flex items-center gap-3 text-gray-700 sm:gap-5">
             <div className="hidden items-center gap-6 text-sm font-medium xl:flex">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 onClick={() => window.dispatchEvent(new Event('clearFilters'))}
                 className="transition-colors hover:text-black"
               >
-                Trang chu
+                Trang chủ
               </Link>
               <Link href="/" className="transition-colors hover:text-black">
-                Danh muc
+                Danh mục
               </Link>
               <Link
                 href="/add-book"
@@ -144,7 +144,7 @@ export default function Header() {
                 }}
               >
                 <PlusCircle size={16} />
-                Them sach
+                Thêm sách
               </Link>
             </div>
 
@@ -165,8 +165,8 @@ export default function Header() {
                     <span className="text-sm font-bold text-gray-900">{user?.fullName || user?.username}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Link 
-                      href="/profile" 
+                    <Link
+                      href="/profile"
                       title="Hồ sơ cá nhân"
                       className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600 hover:text-[#1F4788]"
                     >
@@ -190,7 +190,7 @@ export default function Header() {
                 >
                   <User size={20} />
                   <span className="hidden text-sm font-medium sm:block">
-                    Dang nhap
+                    Đăng nhập
                   </span>
                 </button>
               )}
@@ -203,7 +203,7 @@ export default function Header() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tim kiem sach, tac gia, nha xuat ban..."
+            placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
             className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
           />
           <button
