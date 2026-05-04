@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import axios from 'axios'
 
 const configuredBase = process.env.BACKEND_API_BASE_URL
-const BACKEND_BASE_CANDIDATES = configuredBase
-  ? [configuredBase]
-  : ['http://order-service:8083', 'http://localhost:8083']
-  : ['http://order-service:8083', 'http://localhost:8083']
+const BACKEND_BASE_CANDIDATES = [
+  process.env.BACKEND_URL,
+  'http://order-service:8083',
+  'http://localhost:8083',
+].filter(Boolean)
 
 export async function POST(req: NextRequest) {
   try {
