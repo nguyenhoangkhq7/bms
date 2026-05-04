@@ -343,6 +343,7 @@ function HomeContent() {
         </div>
       </div>
 
+<<<<<<< Updated upstream
         {/* Books Grid */}
         <div className="mt-12">
           {loading ? (
@@ -451,6 +452,150 @@ function HomeContent() {
               ))}
             </div>
           )}
+=======
+        {/* Book Listing Section */}
+        <div className="mt-7">
+          {/* Section Header */}
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900">
+              {searchQuery ? `Kết quả tìm kiếm "${searchQuery}"` : 'Tất cả sách'}
+              {!loading && <span className="ml-2 text-sm font-normal text-slate-500">({filteredBooks.length} cuốn)</span>}
+            </h2>
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="mb-4 h-10 w-10 animate-spin text-slate-400" />
+              <p className="text-sm text-slate-500">Đang tải danh sách sách...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+              <p className="text-red-600">{error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-4 rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                Thử lại
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && filteredBooks.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 text-center">
+              <BookOpen className="mb-4 h-16 w-16 text-slate-300" />
+              <h3 className="mb-2 text-lg font-semibold text-slate-700">Không tìm thấy sách</h3>
+              <p className="text-sm text-slate-500">
+                {hasActiveFilters || searchQuery 
+                  ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.' 
+                  : 'Chưa có sách nào trong hệ thống.'}
+              </p>
+              {hasActiveFilters && (
+                <button 
+                  onClick={clearFilters} 
+                  className="mt-4 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Xoá bộ lọc
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Book Grid */}
+          {!loading && !error && filteredBooks.length > 0 && (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {filteredBooks.map((book) => {
+                const bookImage = book.imageUrl || book.image || (book.images && book.images.length > 0 ? book.images[0].imageUrl : null);
+                const bookRating = book.rating ?? (book.reviews && book.reviews.length > 0 
+                  ? (book.reviews.reduce((sum, r) => sum + r.rating, 0) / book.reviews.length) 
+                  : 0);
+                const categoryName = book.category?.name || '';
+
+                return (
+                  <div
+                    key={book.id}
+                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(15,23,42,0.1)]"
+                  >
+                    {/* Book Image */}
+                    <Link href={`/detail/${book.id}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
+                      {bookImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={bookImage}
+                          alt={book.title}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+                          <BookOpen className="h-12 w-12 text-slate-300" />
+                        </div>
+                      )}
+                      {/* Category Badge */}
+                      {categoryName && (
+                        <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
+                          {categoryName}
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Book Info */}
+                    <div className="flex flex-1 flex-col p-3.5">
+                      <Link href={`/detail/${book.id}`}>
+                        <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-slate-950">
+                          {book.title}
+                        </h3>
+                      </Link>
+                      <p className="mb-2 text-xs text-slate-500">{book.author}</p>
+
+                      {/* Rating */}
+                      {bookRating > 0 && (
+                        <div className="mb-2 flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              size={12}
+                              className={i < Math.round(bookRating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
+                            />
+                          ))}
+                          <span className="ml-1 text-[10px] text-slate-400">
+                            ({book.reviews?.length || 0})
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Price + Add to Cart */}
+                      <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                        <div>
+                          <p className="text-base font-bold text-slate-900">
+                            {Number(book.price).toLocaleString('vi-VN')}₫
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleAddToCart(book.id)}
+                          disabled={addToCartLoading && pendingBookId === book.id}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-all hover:bg-slate-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Thêm vào giỏ hàng"
+                        >
+                          {addToCartLoading && pendingBookId === book.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <span className="text-sm font-bold">+</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </main>
+>>>>>>> Stashed changes
         </div>
       </main>
       </div>
