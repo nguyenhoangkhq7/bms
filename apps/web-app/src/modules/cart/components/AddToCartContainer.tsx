@@ -4,24 +4,28 @@ import React from 'react'
 import AddToCartButton from './AddToCartButton'
 import { useAddToCart } from '../hooks/useAddToCart'
 import type { AddToCartRequest } from '../types'
+import { useAuth } from '@/src/auth/context'
+import toast from 'react-hot-toast'
 
 type Props = {
   bookId: number
   quantity?: number
-  userId?: number
 }
 
-export default function AddToCartContainer({ bookId, quantity = 1, userId }: Props) {
+export default function AddToCartContainer({ bookId, quantity = 1 }: Props) {
   const { addToCart, loading } = useAddToCart()
+  const { user } = useAuth()
 
   async function handleAdd() {
-    const payload: AddToCartRequest = { userId, bookId, quantity }
-    if (!payload.userId && typeof window !== 'undefined') {
-      const u = localStorage.getItem('userId')
-      if (u) payload.userId = Number(u)
+    if (!user) {
+      toast.error('Please login to add to cart')
+      return
     }
+    
+    const payload: AddToCartRequest = { userId: user.id, bookId, quantity }
     try {
       await addToCart(payload)
+      toast.success('Added to cart successfully')
     } catch (e) {
       // handled in hook
     }
