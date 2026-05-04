@@ -83,6 +83,7 @@ export default function Header() {
         <div className="flex w-full flex-1 items-center justify-between gap-3 lg:gap-8">
           <Link
             href="/"
+            onClick={() => window.dispatchEvent(new Event('clearFilters'))}
             className="flex items-center gap-2 text-xl font-bold text-gray-900 sm:text-2xl"
           >
             <BookOpen size={30} strokeWidth={2.5} />
@@ -110,7 +111,11 @@ export default function Header() {
 
           <nav className="flex items-center gap-3 text-gray-700 sm:gap-5">
             <div className="hidden items-center gap-6 text-sm font-medium xl:flex">
-              <Link href="/" className="transition-colors hover:text-black">
+              <Link 
+                href="/" 
+                onClick={() => window.dispatchEvent(new Event('clearFilters'))}
+                className="transition-colors hover:text-black"
+              >
                 Trang chu
               </Link>
               <Link href="/" className="transition-colors hover:text-black">
