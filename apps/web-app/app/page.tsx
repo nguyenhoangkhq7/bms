@@ -201,7 +201,7 @@ function HomeContent() {
        }
     });
 
-    const matchCategory = selectedCategories.length === 0 || allowedCategoryIds.has(catId) || allowedCategoryIds.has(book.parentCategoryId || (book.category as any)?.parentId);
+    const matchCategory = selectedCategories.length === 0 || allowedCategoryIds.has(catId) || allowedCategoryIds.has(book.parentCategoryId as number || book.category?.parentId as number);
 
     // Lọc theo từ khóa tìm kiếm
     const title = (book.title || '').toLowerCase();

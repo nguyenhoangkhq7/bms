@@ -7,12 +7,13 @@ import { useAuth } from '@/src/auth/context';
 import {
   BookOpen, LayoutDashboard, Library, PlusCircle,
   ShoppingCart, Users, Settings, ChevronLeft, ChevronRight,
-  Search, Bell, LogOut, ArrowLeft
+  Search, Bell, LogOut, ArrowLeft, Tags
 } from 'lucide-react';
 
 const menuItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Quản lý sách', href: '/admin/books', icon: Library },
+  { label: 'Danh mục', href: '/admin/categories', icon: Tags },
   { label: 'Thêm sách mới', href: '/add-book', icon: PlusCircle },
   { label: 'Quản lý đơn hàng', href: '/admin/orders', icon: ShoppingCart, disabled: true },
   { label: 'Người dùng', href: '/admin/users', icon: Users, disabled: true },
