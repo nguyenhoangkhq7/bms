@@ -138,10 +138,8 @@ export default function AddBookPage() {
       setSelectedParentCat('');
       setSelectedChildCat('');
 
-      // Redirect after success with a cache-busting token so the home page refetches books.
-      const redirectUrl = `/?updated=${Date.now()}`;
-      console.log('[ADD-BOOK] Redirecting to:', redirectUrl);
-      setTimeout(() => router.push(redirectUrl), 2000);
+      // Redirect after success
+      setTimeout(() => router.push('/admin/books'), 2000);
     } catch (err: unknown) {
       console.error('[ADD-BOOK] Error creating book:', err);
       setError((err as Error).message || 'Có lỗi xảy ra khi thêm sách. Vui lòng thử lại.');
@@ -293,7 +291,7 @@ export default function AddBookPage() {
       {/* HEADER */}
       <div style={headerStyle}>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/admin')}
           style={backBtnStyle}
           onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
           onMouseLeave={e => e.currentTarget.style.background = '#fff'}
