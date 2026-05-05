@@ -24,6 +24,7 @@ export default function AdminBooksPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubCategory, setFilterSubCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
   // Pagination
@@ -65,6 +66,12 @@ export default function AdminBooksPage() {
     [categories]
   );
 
+  const childCategories = useMemo(() => {
+    if (!filterCategory) return [];
+    const catId = Number(filterCategory);
+    return categories.filter(c => c.parentId === catId);
+  }, [filterCategory, categories]);
+
   // Filtered books
   const filteredBooks = useMemo(() => {
     let result = [...books].sort((a, b) => b.id - a.id);
@@ -78,7 +85,13 @@ export default function AdminBooksPage() {
       );
     }
 
-    if (filterCategory) {
+    if (filterSubCategory) {
+      const subCatId = Number(filterSubCategory);
+      result = result.filter(b => {
+        const bookCatId = b.categoryId || b.category?.id;
+        return bookCatId === subCatId;
+      });
+    } else if (filterCategory) {
       const catId = Number(filterCategory);
       // Include books in this category or any child category
       const childIds = categories.filter(c => c.parentId === catId).map(c => c.id);
@@ -98,7 +111,7 @@ export default function AdminBooksPage() {
     }
 
     return result;
-  }, [books, searchTerm, filterCategory, filterStatus, categories]);
+  }, [books, searchTerm, filterCategory, filterSubCategory, filterStatus, categories]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredBooks.length / pageSize);
@@ -109,7 +122,7 @@ export default function AdminBooksPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterCategory, filterStatus, pageSize]);
+  }, [searchTerm, filterCategory, filterSubCategory, filterStatus, pageSize]);
 
   const handleDelete = async (id: number) => {
     setDeleting(true);
@@ -219,7 +232,10 @@ export default function AdminBooksPage() {
           <Filter size={14} style={{ color: '#94a3b8' }} />
           <select
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setFilterSubCategory(''); // Reset sub-category khi đổi parent
+            }}
             style={{
               padding: '10px 32px 10px 12px', border: '1px solid #e2e8f0',
               borderRadius: 10, fontSize: 13, background: '#f8fafc',
@@ -230,11 +246,33 @@ export default function AdminBooksPage() {
               backgroundPosition: 'right 10px center',
             }}
           >
-            <option value="">Tất cả danh mục</option>
+            <option value="">Tất cả danh mục cha</option>
             {parentCategories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+
+          {/* Sub-category filter (chỉ hiện khi đã chọn danh mục cha) */}
+          {filterCategory && childCategories.length > 0 && (
+            <select
+              value={filterSubCategory}
+              onChange={(e) => setFilterSubCategory(e.target.value)}
+              style={{
+                padding: '10px 32px 10px 12px', border: '1px solid #e2e8f0',
+                borderRadius: 10, fontSize: 13, background: '#f8fafc',
+                outline: 'none', color: '#334155', cursor: 'pointer',
+                appearance: 'none' as const,
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 10px center',
+              }}
+            >
+              <option value="">Tất cả danh mục con</option>
+              {childCategories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Status Filter */}
