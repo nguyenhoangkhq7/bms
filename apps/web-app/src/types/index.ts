@@ -47,15 +47,25 @@ export interface Review {
   id: number;
   bookId?: number;
   userName: string;
+  userId?: number;
   content: string;
   rating: number;
+  mediaUrls?: string[];
   createdAt?: string;
 }
 
 export interface ReviewCreateRequest {
   userName: string;
+  userId?: number;
   content: string;
   rating: number;
+  mediaUrls?: string[];
+}
+
+export interface ReviewUpdateRequest {
+  content: string;
+  rating: number;
+  mediaUrls?: string[];
 }
 
 // ===== BookImage =====

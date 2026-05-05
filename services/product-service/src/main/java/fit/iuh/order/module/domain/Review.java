@@ -28,6 +28,15 @@ public class Review {
     @Column(nullable = false)
     private String userName;
 
+    // Lưu ID người đánh giá để xác định quyền sửa/xóa
+    private Long userId;
+
+    // Danh sách đường dẫn ảnh/video đính kèm
+    @ElementCollection
+    @CollectionTable(name = "review_media", joinColumns = @JoinColumn(name = "review_id"))
+    @Column(name = "media_url", length = 500)
+    private java.util.List<String> mediaUrls = new java.util.ArrayList<>();
+
     private LocalDateTime createdAt = LocalDateTime.now();
 
     // Liên kết nhiều Review thuộc về 1 Book

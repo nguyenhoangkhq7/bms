@@ -19,10 +19,12 @@ public class UploadController {
     private S3Service s3Service;
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<Map<String, String>> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "folder", defaultValue = "book-images") String folder) {
         try {
-            // Upload to S3 in the "book-images" folder
-            String fileUrl = s3Service.uploadFile(file, "book-images");
+            // Upload to S3 in the specified folder
+            String fileUrl = s3Service.uploadFile(file, folder);
             
             Map<String, String> response = new HashMap<>();
             response.put("url", fileUrl);
