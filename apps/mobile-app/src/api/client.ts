@@ -1,12 +1,12 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
+import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080/api";
+  process.env.EXPO_PUBLIC_API_URL || "http://localhost/api/v1/identity";
 
 class ApiClient {
   private instance: AxiosInstance;
-  private accessToken: string | null = null;
 
   constructor() {
     this.instance = axios.create({
@@ -20,7 +20,7 @@ class ApiClient {
     // Request interceptor
     this.instance.interceptors.request.use(
       async (config) => {
-        const token = await AsyncStorage.getItem("access_token");
+        const token = await SecureStore.getItemAsync("access_token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -39,19 +39,23 @@ class ApiClient {
           originalRequest._retry = true;
 
           try {
-            const refreshResponse = await this.instance.post("/auth/refresh");
-            const { token } = refreshResponse.data;
+            const storedRefreshToken = await SecureStore.getItemAsync("refresh_token");
+            if (!storedRefreshToken) throw new Error("No refresh token");
 
-            await AsyncStorage.setItem("access_token", token);
-            this.accessToken = token;
+            const refreshResponse = await this.instance.post("/auth/refresh", {
+               refreshToken: storedRefreshToken
+            });
+            const { accessToken, refreshToken } = refreshResponse.data;
 
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+            await this.setTokens(accessToken, refreshToken);
+
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return this.instance(originalRequest);
           } catch (refreshError) {
-            // Refresh failed, clear tokens and redirect to login
-            await AsyncStorage.removeItem("access_token");
+            // Refresh failed, clear tokens
+            await SecureStore.deleteItemAsync("access_token");
+            await SecureStore.deleteItemAsync("refresh_token");
             await AsyncStorage.removeItem("user");
-            // TODO: Navigate to login screen
             return Promise.reject(refreshError);
           }
         }
@@ -61,9 +65,9 @@ class ApiClient {
     );
   }
 
-  async setAccessToken(token: string) {
-    this.accessToken = token;
-    await AsyncStorage.setItem("access_token", token);
+  async setTokens(accessToken: string, refreshToken: string) {
+    await SecureStore.setItemAsync("access_token", accessToken);
+    await SecureStore.setItemAsync("refresh_token", refreshToken);
   }
 
   getClient() {

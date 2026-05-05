@@ -8,6 +8,7 @@ import fit.iuh.promotion.module.dto.VoucherRequestDTO;
 import fit.iuh.promotion.module.service.VoucherAssistant;
 import fit.iuh.promotion.module.service.VoucherService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vouchers")
@@ -71,6 +71,10 @@ public class VoucherController {
 
     @PostMapping("/ask-ai")
     public ResponseEntity<String> askAI(@RequestBody String message) {
+        if (assistant == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body("AI assistant is not configured. Please set a chat language model for promotion-service.");
+        }
         return ResponseEntity.ok(assistant.suggestVoucher(message));
     }
 }

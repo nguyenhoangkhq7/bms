@@ -12,6 +12,9 @@ import {
   UserProfile,
   LoginRequest,
   RegisterRequest,
+  ForgotPasswordRequest,
+  ForgotPasswordConfirmRequest,
+  ChangePasswordWithOtpRequest,
 } from "../api/auth";
 
 interface AuthContextType {
@@ -22,6 +25,10 @@ interface AuthContextType {
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  sendForgotPasswordOtp: (data: ForgotPasswordRequest) => Promise<void>;
+  confirmForgotPassword: (data: ForgotPasswordConfirmRequest) => Promise<void>;
+  sendChangePasswordOtp: () => Promise<void>;
+  confirmChangePassword: (data: ChangePasswordWithOtpRequest) => Promise<void>;
   error: string | null;
   clearError: () => void;
 }
@@ -122,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Logout error:", err);
     } finally {
       localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
       localStorage.removeItem("userId");
       localStorage.removeItem("authMode");
@@ -129,6 +137,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  const sendForgotPasswordOtp = useCallback(
+    async (data: ForgotPasswordRequest) => {
+      try {
+        setIsLoading(true);
+        clearError();
+        await authApi.sendForgotPasswordOtp(data);
+      } catch (err: any) {
+        setError(err?.message || "Failed to send OTP.");
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [clearError],
+  );
+
+  const confirmForgotPassword = useCallback(
+    async (data: ForgotPasswordConfirmRequest) => {
+      try {
+        setIsLoading(true);
+        clearError();
+        await authApi.confirmForgotPassword(data);
+      } catch (err: any) {
+        setError(err?.message || "Failed to reset password.");
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [clearError],
+  );
+
+  const sendChangePasswordOtp = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      clearError();
+      await authApi.sendChangePasswordOtp();
+    } catch (err: any) {
+      setError(err?.message || "Failed to send OTP.");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearError]);
+
+  const confirmChangePassword = useCallback(
+    async (data: ChangePasswordWithOtpRequest) => {
+      try {
+        setIsLoading(true);
+        clearError();
+        await authApi.confirmChangePassword(data);
+      } catch (err: any) {
+        setError(err?.message || "Failed to change password.");
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [clearError],
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -149,6 +218,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         checkAuth,
+        sendForgotPasswordOtp,
+        confirmForgotPassword,
+        sendChangePasswordOtp,
+        confirmChangePassword,
         error,
         clearError,
       }}

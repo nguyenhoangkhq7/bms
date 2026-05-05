@@ -27,16 +27,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       String authHeader = request.getHeader("Authorization");
 
       // khi login hoặc truy cập public content
-      if(authHeader==null || !authHeader.startsWith("Bearer ")) {
-         System.out.println("here 1");
+      if (authHeader == null || !authHeader.startsWith("Bearer ")) {
          filterChain.doFilter(request, response);
          return;
       }
+
       String token = authHeader.replace("Bearer ", "");
       Jwt jwt = jwtService.parseToken(token);
 
-      if(jwt == null || jwt.isExpirated()) {
-         filterChain.doFilter(request, response);
+      // Kiểm tra hợp lệ: chưa hết hạn VÀ chưa bị blacklist (logout)
+      if (!jwtService.isTokenValid(jwt)) {
+         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+         response.getWriter().write("{\"error\": \"Token is invalid or has been revoked\"}");
+         response.setContentType("application/json");
          return;
       }
 
@@ -48,6 +51,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
       authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
       SecurityContextHolder.getContext().setAuthentication(authentication);
       filterChain.doFilter(request, response);
-
    }
 }
+

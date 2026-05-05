@@ -13,7 +13,8 @@ import {
   GraduationCap,
   Landmark,
   Laptop,
-  Loader2 
+  Loader2,
+  ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -51,6 +52,7 @@ export default function Home() {
 function HomeContent() {
   const searchParams = useSearchParams();
   const searchQuery = (searchParams.get('search') || '').toLowerCase();
+  const refreshToken = searchParams.get('updated');
 
   // State quản lý dữ liệu sách
   const [books, setBooks] = useState<Book[]>([]);
@@ -67,6 +69,25 @@ function HomeContent() {
   const [maxPrice, setMaxPrice] = useState('');
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
   const { addToCart, loading: addToCartLoading } = useAddToCart();
+
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const fetchWithRetry = async <T,>(loader: () => Promise<T>, attempts = 3) => {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        return await loader();
+      } catch (error) {
+        lastError = error;
+        if (attempt < attempts) {
+          await delay(750 * attempt);
+        }
+      }
+    }
+
+    throw lastError;
+  };
 
   const clearFilters = () => {
     setSelectedCategories([]);
@@ -93,11 +114,13 @@ function HomeContent() {
     // Hàm tải danh sách sách
     const fetchBooks = async () => {
       try {
+        console.log('[HOME] useEffect triggered with refreshToken:', refreshToken);
         setLoading(true);
-        const data = await bookService.getAllBooks();
+        const data = await fetchWithRetry(() => bookService.getAllBooks());
+        console.log('[HOME] Books fetched from API:', data?.length || 0, 'books', data);
         setBooks(data);
       } catch (err) {
-        console.error("Lỗi khi tải dữ liệu sách:", err);
+        console.error("[HOME] Error fetching books:", err);
         setError("Không thể tải danh sách sách. Vui lòng thử lại sau.");
       } finally {
         setLoading(false);
@@ -107,7 +130,8 @@ function HomeContent() {
     // Hàm tải và xử lý danh mục phân cấp
     const fetchCategories = async () => {
       try {
-        const rawCategories = await categoryService.getAllCategories() as RawCategory[];
+        const rawCategories = await fetchWithRetry(() => categoryService.getAllCategories()) as RawCategory[];
+        console.log('[HOME] Categories fetched:', rawCategories?.length || 0, 'categories');
         
         // Dựa vào Postman: Lọc danh mục cha có parentId === null
         const parentCategories = rawCategories.filter(cat => cat.parentId === null);
@@ -129,13 +153,13 @@ function HomeContent() {
         }
 
       } catch (err) {
-        console.error("Lỗi khi tải danh mục:", err);
+        console.error("[HOME] Error fetching categories:", err);
       }
     };
 
     fetchBooks();
     fetchCategories(); 
-  }, []);
+  }, [refreshToken]);
 
   // Hàm xử lý đóng/mở danh mục
   const toggleCategoryExpand = (categoryId: number) => {
@@ -219,62 +243,59 @@ function HomeContent() {
           <div className="mb-7">
             <div className="flex flex-col gap-2">
               {categories.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Đang tải danh mục...</p>
+                <p className="text-sm text-gray-400 italic">Đang tải danh mục...</p>
               ) : (
-                  categories.map((parentCat) => {
-                    const currentId = parentCat.id;
-                    const isExpanded = expandedCategories.includes(currentId);
-                    
-                    return (
-                      <div key={currentId} className="mb-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2 last:mb-0">
-                            {/* Nút danh mục cha */}
-                            <button 
-                                onClick={() => toggleCategoryExpand(currentId)}
-                          className="group flex w-full items-center justify-between py-1 text-left"
-                            >
-                          <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors group-hover:text-slate-950">
-                            <span className="text-slate-400 transition-colors group-hover:text-slate-700">
-                                        {getCategoryIcon(currentId)}
-                                    </span>
-                                    {parentCat.name}
-                                </span>
-                                {parentCat.subCategories && parentCat.subCategories.length > 0 && (
-                            <span className="text-slate-400 transition-colors group-hover:text-slate-700">
-                                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                    </span>
-                                )}
-                            </button>
+                categories.map((parentCat) => {
+                  const currentId = parentCat.id;
+                  const isExpanded = expandedCategories.includes(currentId);
 
-                            {/* Danh sách danh mục con */}
-                            <div 
-                              className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                                isExpanded ? 'mt-3 max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                              }`}
-                            >
-                              {parentCat.subCategories && parentCat.subCategories.length > 0 && (
-                                  <div className="ml-6 flex flex-col gap-2 pb-1">
-                                      {parentCat.subCategories.map((childCat) => {
-                                        const childId = childCat.id;
-                                        return (
-                                          <label key={childId} className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-slate-100">
-                                              <input 
-                                                type="checkbox" 
-                                                className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-700" 
-                                                checked={selectedCategories.includes(childId)}
-                                                onChange={() => toggleCategoryFilter(childId)}
-                                              />
-                                              <span className="text-sm text-slate-600 transition-colors group-hover:text-slate-900">
-                                                  {childCat.name}
-                                              </span>
-                                          </label>
-                                        );
-                                      })}
-                                  </div>
-                              )}
-                            </div>
-                        </div>
-                    );
-                  })
+                  return (
+                    <div key={currentId} className="mb-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2 last:mb-0">
+                      <button
+                        onClick={() => toggleCategoryExpand(currentId)}
+                        className="group flex w-full items-center justify-between py-1 text-left"
+                      >
+                        <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors group-hover:text-slate-950">
+                          <span className="text-slate-400 transition-colors group-hover:text-slate-700">
+                            {getCategoryIcon(currentId)}
+                          </span>
+                          {parentCat.name}
+                        </span>
+                        {parentCat.subCategories && parentCat.subCategories.length > 0 && (
+                          <span className="text-slate-400 transition-colors group-hover:text-slate-700">
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          </span>
+                        )}
+                      </button>
+
+                      <div
+                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                          isExpanded ? 'mt-3 max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}
+                      >
+                        {parentCat.subCategories && parentCat.subCategories.length > 0 && (
+                          <div className="ml-6 flex flex-col gap-2 pb-1">
+                            {parentCat.subCategories.map((childCat) => {
+                              const childId = childCat.id;
+                              return (
+                                <label key={childId} className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-slate-100">
+                                  <input
+                                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-700"
+                                    checked={selectedCategories.includes(childId)}
+                                    onChange={() => toggleCategoryFilter(childId)}
+                                  />
+                                  <span className="text-sm text-slate-600 transition-colors group-hover:text-slate-900">
+                                    {childCat.name}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -321,9 +342,119 @@ function HomeContent() {
           </div>
         </div>
       </div>
-      </main>
+
+        {/* Books Grid */}
+        <div className="mt-12">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
+            </div>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+              <p className="text-center text-red-700">{error}</p>
+            </div>
+          ) : filteredBooks.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-12 text-center">
+              <BookOpen className="mx-auto mb-4 h-12 w-12 text-slate-400" />
+              <p className="text-slate-600">
+                {selectedCategories.length > 0 || minPrice || maxPrice
+                  ? 'Không tìm thấy sách phù hợp với tiêu chí lọc.'
+                  : 'Không có sách nào để hiển thị.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredBooks.map((book) => (
+                <div
+                  key={book.id}
+                  className="group flex flex-col rounded-2xl border border-slate-100 bg-white/60 backdrop-blur transition hover:border-slate-200 hover:shadow-lg"
+                >
+                  {/* Book Image */}
+                  <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50">
+                    {book.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={book.imageUrl}
+                        alt={book.title}
+                        className="h-48 w-full object-cover transition group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="flex h-48 items-center justify-center">
+                        <BookOpen size={48} className="text-slate-300" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Book Info */}
+                  <div className="flex flex-1 flex-col p-4">
+                    <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-slate-900">
+                      {book.title}
+                    </h3>
+                    <p className="mb-3 text-xs text-slate-500">{book.author || 'Không rõ tác giả'}</p>
+
+                    {/* Rating */}
+                    <div className="mb-3 flex items-center gap-1">
+                      <div className="flex gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={14}
+                            className={i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-slate-500">(42)</span>
+                    </div>
+
+                    <p className="mb-4 line-clamp-2 text-xs text-slate-600">
+                      {book.description || 'Không có mô tả'}
+                    </p>
+
+                    {/* Price and Stock */}
+                    <div className="mb-4 flex items-baseline justify-between">
+                      <span className="text-lg font-bold text-slate-900">
+                        ₫{book.price?.toLocaleString()}
+                      </span>
+                      <span className={`text-xs font-semibold ${(book.stockQuantity ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {(book.stockQuantity ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'}
+                      </span>
+                    </div>
+
+                    {/* Add to Cart Button */}
+                    <button
+                      onClick={() => handleAddToCart(book.id)}
+                      disabled={(addToCartLoading && pendingBookId === book.id) || (book.stockQuantity ?? 0) === 0}
+                      className="flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {addToCartLoading && pendingBookId === book.id ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          Đang thêm...
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={14} />
+                          Thêm vào giỏ
+                        </>
+                      )}
+                    </button>
+
+                    {/* View Details Link */}
+                    <Link
+                      href={`/detail/${book.id}`}
+                      className="mt-2 text-center text-xs font-semibold text-slate-600 transition hover:text-slate-900"
+                    >
+                      Xem chi tiết
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      </main>
       </div>
+    </div>
     </div>
   );
 }
