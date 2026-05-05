@@ -24,9 +24,9 @@ public class Review {
     @Column(nullable = false)
     private int rating; // Số sao (1 đến 5)
 
-    // Chỉ lưu ID của User thay vì @ManyToOne, vì User nằm ở Identity Service
+    // Lưu tên người đánh giá
     @Column(nullable = false)
-    private String userId;
+    private String userName;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 

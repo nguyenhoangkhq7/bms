@@ -23,6 +23,8 @@ import { bookService } from '@/src/api/bookService';
 import { categoryService } from '@/src/api/categoryService';
 import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
 import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
+import { useAuth } from '@/src/auth/context';
+import { useRouter } from 'next/navigation';
 import type { Book, Category } from '@/src/types';
 
 // Interface cho danh mục dạng cây (có danh mục con)
@@ -69,6 +71,8 @@ function HomeContent() {
   const [maxPrice, setMaxPrice] = useState('');
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
   const { addToCart, loading: addToCartLoading } = useAddToCart();
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
 
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -225,11 +229,14 @@ function HomeContent() {
   const hasActiveFilters = selectedCategories.length > 0 || Boolean(minPrice) || Boolean(maxPrice);
 
   const handleAddToCart = async (bookId: number) => {
-    const userId = getEffectiveUserId();
-    if (!userId) {
+    if (!isSignedIn) {
       toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      router.push('/auth/login');
       return;
     }
+
+    const userId = getEffectiveUserId();
+    if (!userId) return;
 
     try {
       setPendingBookId(bookId);
@@ -397,57 +404,68 @@ function HomeContent() {
                   className="group flex flex-col rounded-2xl border border-slate-100 bg-white/60 backdrop-blur transition hover:border-slate-200 hover:shadow-lg"
                 >
                   <Link href={`/detail/${book.id}`} className="flex flex-1 flex-col">
-                    {/* Book Image */}
-                    <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50">
-                      {book.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={book.imageUrl}
-                          alt={book.title}
-                          className="h-48 w-full object-cover transition group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="flex h-48 items-center justify-center">
-                          <BookOpen size={48} className="text-slate-300" />
-                        </div>
-                      )}
-                    </div>
+                    {(() => {
+                      const totalReviews = book.reviews ? book.reviews.length : 0;
+                      const avgRating = totalReviews > 0 
+                        ? Math.round(book.reviews!.reduce((sum, r) => sum + r.rating, 0) / totalReviews)
+                        : 0;
 
-                    {/* Book Info */}
-                    <div className="flex flex-1 flex-col p-4 pb-2">
-                      <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700">
-                        {book.title}
-                      </h3>
-                      <p className="mb-3 text-xs text-slate-500">{book.author || 'Không rõ tác giả'}</p>
+                      return (
+                        <>
+                          {/* Book Image */}
+                          <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50">
+                            {book.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={book.imageUrl}
+                                alt={book.title}
+                                className="h-48 w-full object-cover transition group-hover:scale-110"
+                              />
+                            ) : (
+                              <div className="flex h-48 items-center justify-center">
+                                <BookOpen size={48} className="text-slate-300" />
+                              </div>
+                            )}
+                          </div>
 
-                      {/* Rating */}
-                      <div className="mb-3 flex items-center gap-1">
-                        <div className="flex gap-0.5">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              size={14}
-                              className={i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-slate-500">(42)</span>
-                      </div>
+                          {/* Book Info */}
+                          <div className="flex flex-1 flex-col p-4 pb-2">
+                            <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700">
+                              {book.title}
+                            </h3>
+                            <p className="mb-3 text-xs text-slate-500">{book.author || 'Không rõ tác giả'}</p>
 
-                      <p className="mb-4 line-clamp-2 text-xs text-slate-600">
-                        {book.description || 'Không có mô tả'}
-                      </p>
+                            {/* Rating */}
+                            <div className="mb-3 flex items-center gap-1">
+                              <div className="flex gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    size={14}
+                                    className={i < avgRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-xs text-slate-500">({totalReviews})</span>
+                            </div>
 
-                      {/* Price and Stock */}
-                      <div className="mt-auto flex items-baseline justify-between">
-                        <span className="text-lg font-bold text-slate-900">
-                          ₫{book.price?.toLocaleString()}
-                        </span>
-                        <span className={`text-xs font-semibold ${(book.stockQuantity ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {(book.stockQuantity ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'}
-                        </span>
-                      </div>
-                    </div>
+                            <p className="mb-4 line-clamp-2 text-xs text-slate-600">
+                              {book.description || 'Không có mô tả'}
+                            </p>
+
+                            {/* Price and Stock */}
+                            <div className="mt-auto flex items-baseline justify-between">
+                              <span className="text-lg font-bold text-slate-900">
+                                ₫{book.price?.toLocaleString()}
+                              </span>
+                              <span className={`text-xs font-semibold ${(book.stockQuantity ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {(book.stockQuantity ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </Link>
 
                   {/* Add to Cart Button */}

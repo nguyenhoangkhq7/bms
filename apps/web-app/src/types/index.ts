@@ -45,14 +45,15 @@ export interface Category {
 // ===== Review =====
 export interface Review {
   id: number;
-  bookId: number;
-  reviewer: string;
+  bookId?: number;
+  userName: string;
   content: string;
   rating: number;
+  createdAt?: string;
 }
 
 export interface ReviewCreateRequest {
-  reviewer: string;
+  userName: string;
   content: string;
   rating: number;
 }

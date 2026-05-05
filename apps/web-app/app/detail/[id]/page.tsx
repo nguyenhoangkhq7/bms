@@ -1,20 +1,15 @@
 'use client';
 
-import { Star, ShoppingCart, Heart, ChevronRight, User, Send, BookOpen, ArrowLeft } from 'lucide-react';
+import { Star, ShoppingCart, Heart, ChevronRight, User, Send, BookOpen, ArrowLeft, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { bookService } from '@/src/api/bookService';
 import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
 import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
-import type { Book } from '@/src/types';
-
-interface ReviewItem {
-  id: number;
-  content: string;
-  rating: number;
-  userName?: string;
-}
+import { reviewService } from '@/src/api/reviewService';
+import { useAuth } from '@/src/auth/context';
+import type { Book, Review } from '@/src/types';
 
 export default function DetailPage() {
   const params = useParams();
@@ -22,7 +17,7 @@ export default function DetailPage() {
   const router = useRouter();
 
   const [book, setBook] = useState<Book | null>(null);
-  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [newReview, setNewReview] = useState('');
@@ -39,7 +34,19 @@ export default function DetailPage() {
       try {
         const data = await bookService.getBookById(Number(id));
         setBook(data);
-        setReviews((data?.reviews as unknown as ReviewItem[]) || []);
+        
+        // Lấy danh sách đánh giá từ API
+        try {
+          const fetchedReviews = await reviewService.getReviewsOfBook(Number(id));
+          // Sắp xếp review mới nhất lên đầu
+          setReviews((fetchedReviews || []).sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+          }));
+        } catch (rErr) {
+          console.error("Lỗi tải reviews:", rErr);
+        }
       } catch (err) {
         console.error("Lỗi load detail:", err);
       } finally {
@@ -51,19 +58,46 @@ export default function DetailPage() {
   }, [id]);
 
   // ADD REVIEW
-  const handleSubmitReview = () => {
+  const { user: authUser, isSignedIn } = useAuth();
+
+  const handleSubmitReview = async () => {
     if (!newReview.trim()) return;
 
-    const fakeReview: ReviewItem = {
-      id: Date.now(),
-      content: newReview,
-      rating: rating,
-      userName: "Bạn"
-    };
+    if (!isSignedIn || !authUser) {
+      toast.error('Vui lòng đăng nhập để gửi đánh giá');
+      return;
+    }
 
-    setReviews([fakeReview, ...reviews]);
-    setNewReview('');
-    setRating(5);
+    const reviewerName = authUser.fullName || authUser.username || 'Người dùng';
+
+    try {
+      const addedReview = await reviewService.addReviewToBook(Number(id), {
+        userName: reviewerName,
+        content: newReview,
+        rating: rating
+      });
+
+      if (addedReview) {
+        setReviews([addedReview, ...reviews]);
+        setNewReview('');
+        setRating(5);
+        toast.success('Gửi đánh giá thành công!');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khi gửi đánh giá');
+    }
+  };
+
+  // DELETE REVIEW (admin only)
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!confirm('Đánh giá này sẽ bị xóa vĩnh viễn. Bạn có chắc không?')) return;
+    try {
+      await reviewService.deleteReview(reviewId);
+      setReviews(reviews.filter(r => r.id !== reviewId));
+      toast.success('Xóa đánh giá thành công');
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi khi xóa đánh giá');
+    }
   };
 
   if (loading) return (
@@ -118,11 +152,14 @@ export default function DetailPage() {
     : 0;
 
   const handleAddToCart = async () => {
-    const userId = getEffectiveUserId();
-    if (!userId || !book?.id) {
+    if (!isSignedIn) {
       toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      router.push('/auth/login');
       return;
     }
+
+    const userId = getEffectiveUserId();
+    if (!userId || !book?.id) return;
 
     await addToCart({
       userId,
@@ -509,6 +546,7 @@ export default function DetailPage() {
         </h2>
 
         {/* REVIEW FORM */}
+        {isSignedIn ? (
         <div style={{
           padding: '24px',
           background: '#fff',
@@ -608,6 +646,37 @@ export default function DetailPage() {
             </button>
           </div>
         </div>
+        ) : (
+        <div style={{
+          padding: '24px',
+          background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+          borderRadius: '16px',
+          border: '1px solid #ddd6fe',
+          textAlign: 'center',
+          marginBottom: '32px'
+        }}>
+          <User size={32} style={{ color: '#7c3aed', marginBottom: '8px' }} />
+          <p style={{ fontSize: '15px', fontWeight: '600', color: '#4c1d95', margin: '0 0 8px' }}>
+            Bạn cần đăng nhập để đánh giá
+          </p>
+          <button
+            onClick={() => router.push('/auth/login')}
+            style={{
+              padding: '10px 24px',
+              background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)'
+            }}
+          >
+            Đăng nhập ngay
+          </button>
+        </div>
+        )}
 
         {/* REVIEW LIST */}
         {reviews.length === 0 ? (
@@ -671,6 +740,39 @@ export default function DetailPage() {
                       ))}
                     </div>
                   </div>
+                  {/* Admin delete button */}
+                  {authUser?.role === 'ADMIN' && (
+                    <button
+                      onClick={() => handleDeleteReview(r.id)}
+                      title="Xóa đánh giá"
+                      style={{
+                        marginLeft: 'auto',
+                        background: 'none',
+                        border: '1px solid #fecaca',
+                        borderRadius: '8px',
+                        padding: '6px 8px',
+                        cursor: 'pointer',
+                        color: '#ef4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#fef2f2';
+                        e.currentTarget.style.borderColor = '#f87171';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.borderColor = '#fecaca';
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      Xóa
+                    </button>
+                  )}
                 </div>
                 <p style={{
                   fontSize: '15px', lineHeight: '1.7',
