@@ -2,7 +2,6 @@ package fit.iuh.order.module.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fit.iuh.order.module.exception.NotFoundException;
 import fit.iuh.order.module.models.StoreInfo;
 import fit.iuh.order.module.shipping.repository.StoreInfoRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,13 +22,17 @@ public class OpenRouteServiceClient implements RoutingClient {
     @Value("${external.openrouteservice.api-key:}")
     private String apiKey;
 
+    @Value("${shipping.default-store-latitude:10.822159}")
+    private Double defaultStoreLat;
+
+    @Value("${shipping.default-store-longitude:106.686824}")
+    private Double defaultStoreLng;
+
     @Override
     public Double calculateDistance(Double destLat, Double destLng) {
-        StoreInfo storeInfo = storeInfoRepository.findTopByOrderByIdAsc()
-            .orElseThrow(() -> new NotFoundException("Store info not configured"));
-
-        Double storeLat = storeInfo.getLatitude();
-        Double storeLng = storeInfo.getLongitude();
+        StoreInfo storeInfo = storeInfoRepository.findTopByOrderByIdAsc().orElse(null);
+        Double storeLat = storeInfo != null ? storeInfo.getLatitude() : defaultStoreLat;
+        Double storeLng = storeInfo != null ? storeInfo.getLongitude() : defaultStoreLng;
 
         if (apiKey == null || apiKey.isBlank()) {
             return haversineKm(storeLat, storeLng, destLat, destLng);

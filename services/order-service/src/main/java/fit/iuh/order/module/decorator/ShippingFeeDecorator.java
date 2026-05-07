@@ -1,7 +1,6 @@
 package fit.iuh.order.module.decorator;
 
 import fit.iuh.order.module.client.RoutingClient;
-import fit.iuh.order.module.exception.NotFoundException;
 import fit.iuh.order.module.models.ShippingRule;
 import fit.iuh.order.module.shipping.repository.ShippingRuleRepository;
 import java.math.BigDecimal;
@@ -39,10 +38,20 @@ public class ShippingFeeDecorator extends PriceDecorator {
         }
 
         Double distanceInKm = routingClient.calculateDistance(destinationLatitude, destinationLongitude);
-        ShippingRule rule = shippingRuleRepository.findMatchingRule(distanceInKm)
-            .orElseThrow(() -> new NotFoundException("No shipping rule for distance " + distanceInKm));
+        ShippingRule rule = shippingRuleRepository.findMatchingRule(distanceInKm).orElse(null);
+        if (rule != null) {
+            cachedBaseShippingFee = rule.getFee();
+            return cachedBaseShippingFee;
+        }
 
-        cachedBaseShippingFee = rule.getFee();
+        // Fallback when shipping rules are missing in DB.
+        if (distanceInKm < 50d) {
+            cachedBaseShippingFee = BigDecimal.ZERO;
+        } else if (distanceInKm <= 500d) {
+            cachedBaseShippingFee = BigDecimal.valueOf(25000);
+        } else {
+            cachedBaseShippingFee = BigDecimal.valueOf(50000);
+        }
         return cachedBaseShippingFee;
     }
 
