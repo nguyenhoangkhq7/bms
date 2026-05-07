@@ -112,6 +112,7 @@ export default function AddressPicker({
     onLocationChange({ lat, lng })
     onLocationSelected(true)
     mapRef?.flyTo([lat, lng], 15, { animate: true })
+    setSuggestions([])
   }
 
   async function fetchReverse(lat: number, lng: number) {
@@ -144,7 +145,7 @@ export default function AddressPicker({
     setSearching(true)
     setSearchError('')
     try {
-      const endpoint = `${PHOTON_ENDPOINT}?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}&lat=${DEFAULT_CENTER.lat}&lon=${DEFAULT_CENTER.lng}&lang=vi`
+      const endpoint = `${PHOTON_ENDPOINT}?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}&lat=${DEFAULT_CENTER.lat}&lon=${DEFAULT_CENTER.lng}&lang=vi&layer=house&layer=address&layer=street&layer=locality&layer=city&layer=district`
       const response = await fetch(endpoint, { headers: { Accept: 'application/json' } })
       const data = (await response.json()) as { features?: PhotonFeature[] }
       if (requestId !== activeRequestRef.current) return
