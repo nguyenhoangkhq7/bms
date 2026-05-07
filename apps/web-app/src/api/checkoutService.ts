@@ -1,24 +1,8 @@
 import axios from 'axios'
 import type { CheckoutRequest, CheckoutPreviewResponse, CheckoutResponse } from '@/src/modules/checkout/types'
 
-function resolveOrderBase() {
-  if (typeof window === 'undefined') {
-    return '/api/v1/orders'
-  }
-
-  const { protocol, hostname, port, origin } = window.location
-  if (port && port !== '80' && port !== '443') {
-    if (port === '3000') {
-      return `${protocol}//${hostname}/api/v1/orders`
-    }
-  }
-
-  return `${origin}/api/v1/orders`
-}
-
-const ORDER_SERVICE_BASE = resolveOrderBase()
-const PREVIEW_ENDPOINT = `${ORDER_SERVICE_BASE}/preview`
-const CHECKOUT_ENDPOINT = `${ORDER_SERVICE_BASE}`
+const PREVIEW_ENDPOINT = '/api/checkout/preview'
+const CHECKOUT_ENDPOINT = '/api/checkout/submit'
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
