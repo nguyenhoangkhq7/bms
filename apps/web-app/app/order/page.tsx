@@ -6,7 +6,6 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, PackageCheck, Sparkles } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import 'leaflet/dist/leaflet.css'
 import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext'
 import { getCart } from '@/src/modules/cart/services/cartService'
 import { bookService } from '@/src/api/bookService'
@@ -14,23 +13,8 @@ import { previewCheckout, submitCheckout } from '@/src/modules/checkout/services
 import type { CheckoutPreviewResponse, CheckoutRequest } from '@/src/modules/checkout/types'
 import type { CartResponse } from '@/src/modules/cart/types'
 import type { Book } from '@/src/types'
-import type { AddressPickerProps } from '@/src/modules/checkout/components/AddressPicker'
 
 type BookMap = Record<number, Book | null>
-
-const STORE_COORDS = { lat: 10.822159, lng: 106.686824 }
-
-const AddressPicker = dynamic<AddressPickerProps>(
-  () => import('@/src/modules/checkout/components/AddressPicker'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-[360px] items-center justify-center rounded-3xl border border-slate-200 bg-white text-sm text-slate-500 shadow-sm">
-        Dang tai ban do...
-      </div>
-    ),
-  }
-)
 
 export default function OrderPage() {
   const router = useRouter()
@@ -39,10 +23,6 @@ export default function OrderPage() {
   const [booksById, setBooksById] = useState<BookMap>({})
 
   const [address, setAddress] = useState('')
-  const [latitude, setLatitude] = useState<number | null>(STORE_COORDS.lat)
-  const [longitude, setLongitude] = useState<number | null>(STORE_COORDS.lng)
-  const [hasSelectedLocation, setHasSelectedLocation] = useState(false)
-  const [mapReady, setMapReady] = useState(false)
 
   const [voucherCode, setVoucherCode] = useState('')
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null)
@@ -117,11 +97,9 @@ export default function OrderPage() {
   const orderDiscount = preview?.orderDiscount ?? 0
   const finalTotal = preview?.finalTotal ?? Math.max(subtotalAmount + baseShippingFee - shippingDiscount - orderDiscount, 0)
 
-  const addressReady = address.trim().length > 0
-  const coordsReady = typeof latitude === 'number' && typeof longitude === 'number'
-  const canPreview = addressReady && coordsReady && hasSelectedLocation
+  const addressReady = address.trim().length > 5
+  const canPreview = addressReady
   const canSubmit =
-    mapReady &&
     canPreview &&
     !previewLoading &&
     !checkoutLoading &&
@@ -142,8 +120,8 @@ export default function OrderPage() {
       const payload: CheckoutRequest = {
         userId,
         shippingAddress: address.trim(),
-        shippingLatitude: latitude as number,
-        shippingLongitude: longitude as number,
+        shippingLatitude: 10.822159, // default placeholder coords
+        shippingLongitude: 106.686824,
         voucherCode: voucherCode.trim() || undefined,
       }
 
@@ -165,7 +143,7 @@ export default function OrderPage() {
     }, 500)
 
     return () => window.clearTimeout(handler)
-  }, [address, latitude, longitude, voucherCode, canPreview])
+  }, [address, voucherCode, canPreview])
 
   async function handleCheckout() {
     const userId = getEffectiveUserId()
@@ -175,15 +153,15 @@ export default function OrderPage() {
     }
 
     if (!canPreview) {
-      toast.error('Vui long chon dia chi giao hang hop le')
+      toast.error('Vui long nhap dia chi giao hang hop le')
       return
     }
 
     const payload: CheckoutRequest = {
       userId,
       shippingAddress: address.trim(),
-      shippingLatitude: latitude as number,
-      shippingLongitude: longitude as number,
+      shippingLatitude: 10.822159, // default placeholder coords
+      shippingLongitude: 106.686824,
       voucherCode: voucherCode.trim() || undefined,
     }
 
@@ -209,7 +187,7 @@ export default function OrderPage() {
               Xac nhan dia chi va thanh toan
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              Chon vi tri giao hang de tinh phi ship chinh xac tu IUH.
+              Nhap dia chi giao hang de tinh phi ship.
             </p>
           </div>
           <Link
@@ -257,18 +235,17 @@ export default function OrderPage() {
             </div>
 
             <div className="rounded-3xl border border-[#e7dfd1] bg-white/80 p-6 shadow-[0_18px_40px_rgba(106,78,32,0.12)] backdrop-blur">
-              <AddressPicker
-                address={address}
-                latitude={latitude}
-                longitude={longitude}
-                onAddressChange={setAddress}
-                onLocationChange={({ lat, lng }) => {
-                  setLatitude(lat)
-                  setLongitude(lng)
-                }}
-                onLocationSelected={setHasSelectedLocation}
-                onReadyChange={setMapReady}
-              />
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900" style={{ fontFamily: '"Space Grotesk", "Trebuchet MS", sans-serif' }}>
+                  Dia chi giao hang
+                </h3>
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Nhap dia chi giao hang cua ban..."
+                  className="w-full min-h-[120px] rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none transition-all"
+                />
+              </div>
 
               <div className="mt-6 rounded-2xl border border-dashed border-amber-200 bg-amber-50/70 p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
@@ -329,12 +306,6 @@ export default function OrderPage() {
                   <PackageCheck size={18} />
                   {checkoutLoading ? 'Dang xu ly...' : 'Dat hang'}
                 </button>
-                {!mapReady && (
-                  <p className="text-xs text-amber-600">Ban do chua san sang. Vui long doi tai ban do.</p>
-                )}
-                {mapReady && !hasSelectedLocation && (
-                  <p className="text-xs text-amber-600">Vui long chon dia chi tren ban do de tinh phi ship.</p>
-                )}
                 {previewLoading && (
                   <p className="text-xs text-amber-600">Dang tinh phi ship. Vui long doi mot chut.</p>
                 )}
