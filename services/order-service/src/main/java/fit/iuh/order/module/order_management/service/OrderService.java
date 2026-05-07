@@ -1,75 +1,91 @@
 package fit.iuh.order.module.order_management.service;
 
+import fit.iuh.order.module.handler.CheckoutContext;
+import fit.iuh.order.module.handler.PersistOrderHandler;
+import fit.iuh.order.module.handler.PricingHandler;
+import fit.iuh.order.module.handler.StockCheckHandler;
+import fit.iuh.order.module.handler.VoucherCheckHandler;
 import fit.iuh.order.module.order_management.dto.*;
-import fit.iuh.order.module.order_management.dto.external.BookResponseDTO;
 import fit.iuh.order.module.models.Order;
-import fit.iuh.order.module.models.OrderItem;
 import fit.iuh.order.module.models.enums.OrderStatus;
 import fit.iuh.order.module.order_management.repository.OrderRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service("orderManagementOrderService")
 public class OrderService {
     private final OrderRepository orderRepository;
-    private final RestTemplate restTemplate;
+    private final StockCheckHandler stockCheckHandler;
+    private final VoucherCheckHandler voucherCheckHandler;
+    private final PricingHandler pricingHandler;
+    private final PersistOrderHandler persistOrderHandler;
 
-    public OrderService(OrderRepository orderRepository, @Qualifier("orderManagementRestTemplate") RestTemplate restTemplate) {
+    public OrderService(
+        OrderRepository orderRepository,
+        StockCheckHandler stockCheckHandler,
+        VoucherCheckHandler voucherCheckHandler,
+        PricingHandler pricingHandler,
+        PersistOrderHandler persistOrderHandler
+    ) {
         this.orderRepository = orderRepository;
-        this.restTemplate = restTemplate;
-    }
+        this.stockCheckHandler = stockCheckHandler;
+        this.voucherCheckHandler = voucherCheckHandler;
+        this.pricingHandler = pricingHandler;
+        this.persistOrderHandler = persistOrderHandler;
 
-    private final String PRODUCT_SERVICE_URL = "http://product-service:8082/api/books/";
+        this.stockCheckHandler
+            .setNextHandler(this.voucherCheckHandler)
+            .setNextHandler(this.pricingHandler)
+            .setNextHandler(this.persistOrderHandler);
+    }
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
-        Order order = Order.builder()
-                .userId(request.getUserId())
-                .orderCode("ORD-" + System.currentTimeMillis()) // Simple generation
-                .orderDate(LocalDateTime.now())
-                .status(OrderStatus.PENDING)
-                .totalAmount(BigDecimal.ZERO)
-                .shippingAddress(request.getShippingAddress())
-                .shippingLatitude(request.getShippingLatitude())
-                .shippingLongitude(request.getShippingLongitude())
-                .build();
+        CheckoutContext context = CheckoutContext.builder()
+            .userId(request.getUserId())
+            .shippingAddress(request.getShippingAddress())
+            .shippingLatitude(request.getShippingLatitude())
+            .shippingLongitude(request.getShippingLongitude())
+            .voucherCode(request.getVoucherCode())
+            .requestedItems(request.getItems())
+            .previewOnly(false)
+            .build();
 
-        List<OrderItem> items = request.getItems().stream().map(itemRequest -> {
-            // Confirm stock and price with product-service
-            BookResponseDTO book = restTemplate.getForObject(PRODUCT_SERVICE_URL + itemRequest.getBookId(), BookResponseDTO.class);
-            
-            if (book == null) {
-                throw new RuntimeException("Book not found with id: " + itemRequest.getBookId());
-            }
-            if (book.getStockQuantity() < itemRequest.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for bookId: " + itemRequest.getBookId() + ". Available: " + book.getStockQuantity());
-            }
+        stockCheckHandler.handle(context);
 
-            return OrderItem.builder()
-                    .order(order)
-                    .bookId(itemRequest.getBookId())
-                    .quantity(itemRequest.getQuantity())
-                    .priceAtPurchase(book.getPrice())
-                    .build();
-        }).collect(Collectors.toList());
+        Order savedOrder = context.getOrder();
+        if (savedOrder == null) {
+            throw new IllegalStateException("Checkout pipeline did not persist order");
+        }
 
-        BigDecimal totalAmount = items.stream()
-                .map(item -> item.getPriceAtPurchase().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        order.setItems(items);
-        order.setTotalAmount(totalAmount);
-
-        Order savedOrder = orderRepository.save(order);
         return mapToResponse(savedOrder);
+    }
+
+    @Transactional(readOnly = true)
+    public OrderPreviewResponse previewOrder(OrderRequest request) {
+        CheckoutContext context = CheckoutContext.builder()
+            .userId(request.getUserId())
+            .shippingAddress(request.getShippingAddress())
+            .shippingLatitude(request.getShippingLatitude())
+            .shippingLongitude(request.getShippingLongitude())
+            .voucherCode(request.getVoucherCode())
+            .requestedItems(request.getItems())
+            .previewOnly(true)
+            .build();
+
+        stockCheckHandler.handle(context);
+
+        return OrderPreviewResponse.builder()
+            .subtotalAmount(context.getSubtotal())
+            .baseShippingFee(context.getBaseShippingFee())
+            .shippingDiscount(context.getShippingDiscount())
+            .orderDiscount(context.getOrderDiscount())
+            .finalTotal(context.getFinalTotal())
+            .totalAmount(context.getFinalTotal())
+            .build();
     }
 
     public OrderResponse getOrderById(Long id) {
@@ -103,6 +119,11 @@ public class OrderService {
                 .userId(order.getUserId())
                 .orderDate(order.getOrderDate())
                 .totalAmount(order.getTotalAmount())
+            .subtotalAmount(order.getSubtotalAmount())
+            .baseShippingFee(order.getBaseShippingFee())
+            .shippingDiscount(order.getShippingDiscount())
+            .orderDiscount(order.getOrderDiscount())
+            .finalTotal(order.getFinalTotal())
                 .status(order.getStatus().name())
                 .items(order.getItems().stream().map(item -> OrderItemResponse.builder()
                         .id(item.getId())

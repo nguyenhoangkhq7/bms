@@ -18,6 +18,11 @@ public class OrderResponse {
     private Long userId;
     private LocalDateTime orderDate;
     private BigDecimal totalAmount;
+    private BigDecimal subtotalAmount;
+    private BigDecimal baseShippingFee;
+    private BigDecimal shippingDiscount;
+    private BigDecimal orderDiscount;
+    private BigDecimal finalTotal;
     private String status;
     private List<OrderItemResponse> items;
 }

@@ -268,9 +268,12 @@ export default function CartPage() {
               <span>{formatCurrency(total)}</span>
             </div>
 
-            <button className="w-full rounded-full bg-slate-900 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800">
+            <Link
+              href="/order"
+              className="block w-full rounded-full bg-slate-900 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800"
+            >
               Tiến hành thanh toán
-            </button>
+            </Link>
           </aside>
         </div>
       </div>

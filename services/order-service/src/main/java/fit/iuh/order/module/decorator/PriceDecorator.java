@@ -10,7 +10,27 @@ public abstract class PriceDecorator implements OrderPrice {
     }
 
     @Override
-    public BigDecimal calculate() {
-        return wrapped.calculate();
+    public BigDecimal getSubtotal() {
+        return wrapped.getSubtotal();
+    }
+
+    @Override
+    public BigDecimal getBaseShippingFee() {
+        return wrapped.getBaseShippingFee();
+    }
+
+    @Override
+    public BigDecimal getShippingDiscount() {
+        return wrapped.getShippingDiscount();
+    }
+
+    @Override
+    public BigDecimal getOrderDiscount() {
+        return wrapped.getOrderDiscount();
+    }
+
+    @Override
+    public BigDecimal getFinalTotal() {
+        return wrapped.getFinalTotal();
     }
 }

@@ -16,5 +16,6 @@ public class OrderRequest {
     private String shippingAddress;
     private Double shippingLatitude;
     private Double shippingLongitude;
+    private String voucherCode;
     private List<OrderItemRequest> items;
 }

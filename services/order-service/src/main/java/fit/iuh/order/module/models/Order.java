@@ -35,6 +35,21 @@ public class Order {
     @Column(nullable = false)
     private BigDecimal totalAmount;
 
+    @Column(nullable = false)
+    private BigDecimal subtotalAmount;
+
+    @Column(nullable = false)
+    private BigDecimal baseShippingFee;
+
+    @Column(nullable = false)
+    private BigDecimal shippingDiscount;
+
+    @Column(nullable = false)
+    private BigDecimal orderDiscount;
+
+    @Column(nullable = false)
+    private BigDecimal finalTotal;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;

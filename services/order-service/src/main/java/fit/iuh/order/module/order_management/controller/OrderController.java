@@ -1,5 +1,6 @@
 package fit.iuh.order.module.order_management.controller;
 
+import fit.iuh.order.module.order_management.dto.OrderPreviewResponse;
 import fit.iuh.order.module.order_management.dto.OrderRequest;
 import fit.iuh.order.module.order_management.dto.OrderResponse;
 import fit.iuh.order.module.order_management.service.OrderService;
@@ -19,6 +20,11 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {
         return new ResponseEntity<>(orderService.createOrder(request), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/preview")
+    public ResponseEntity<OrderPreviewResponse> previewOrder(@RequestBody OrderRequest request) {
+        return ResponseEntity.ok(orderService.previewOrder(request));
     }
 
     @GetMapping("/{id}")

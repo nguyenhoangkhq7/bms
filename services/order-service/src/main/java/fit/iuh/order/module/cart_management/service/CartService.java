@@ -14,7 +14,6 @@ import fit.iuh.order.module.cart_management.repository.CartRepository;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CartService {
-    private static final AtomicLong CART_ID = new AtomicLong(1);
-    private static final AtomicLong CART_ITEM_ID = new AtomicLong(1);
-
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
 
@@ -39,7 +35,6 @@ public class CartService {
                 return existing;
             })
             .orElseGet(() -> CartItem.builder()
-                .id(CART_ITEM_ID.getAndIncrement())
                 .cartId(cart.getId())
                 .bookId(request.bookId())
                 .quantity(request.quantity())
@@ -95,7 +90,6 @@ public class CartService {
 
     private Cart createCart(Long userId) {
         Cart cart = Cart.builder()
-            .id(CART_ID.getAndIncrement())
             .userId(userId)
             .totalEstimated(BigDecimal.ZERO)
             .build();
