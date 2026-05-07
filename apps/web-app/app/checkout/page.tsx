@@ -145,9 +145,11 @@ export default function CheckoutPage() {
       try {
         const userId = getEffectiveUserId()
         const cart = await getCart(userId)
-        const ids = Array.from(new Set((cart.items ?? []).map((item: CartItem) => item.bookId)))
+        const ids: number[] = Array.from(
+          new Set<number>((cart.items ?? []).map((item: CartItem) => item.bookId))
+        )
         const entries = await Promise.all(
-          ids.map(async (id) => {
+          ids.map(async (id: number) => {
             try {
               return [id, await bookService.getBookById(id)] as const
             } catch {
