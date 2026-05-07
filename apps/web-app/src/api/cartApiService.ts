@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const configuredBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || process.env.BACKEND_API_BASE_URL
-const DEFAULT_BASES = ['http://localhost/api/v1/orders', 'http://localhost:8083']
+const DEFAULT_BASES = ['http://localhost/api/v1/orders']
 const BACKEND_BASE_CANDIDATES = Array.from(
   new Set([...(configuredBase ? [configuredBase] : []), ...DEFAULT_BASES])
 )

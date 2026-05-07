@@ -2,9 +2,9 @@ import axios from 'axios'
 import type { CheckoutRequest, CheckoutPreviewResponse, CheckoutResponse } from '@/src/checkout/types'
 
 const configuredBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || process.env.BACKEND_API_BASE_URL
-const DEFAULT_BASES = ['http://localhost/api/v1/orders', 'http://localhost:8083']
+const DEFAULT_BASES = ['http://localhost/api/v1/orders']
 const BACKEND_BASE_CANDIDATES = Array.from(
-  new Set([...(configuredBase ? [configuredBase] : []), ...DEFAULT_BASES])
+  new Set([...DEFAULT_BASES, ...(configuredBase ? [configuredBase] : [])])
 )
 const FALLBACK_STATUSES = new Set([404, 502, 503, 504])
 
@@ -15,12 +15,21 @@ function trimSlash(value: string) {
 function buildOrderApiCandidates(base: string) {
   const normalized = trimSlash(base)
   if (normalized.endsWith('/api/orders')) {
-    return [`${normalized}/preview`, normalized]
+    return {
+      previewUrls: [`${normalized}/preview`],
+      submitUrls: [normalized],
+    }
   }
   if (normalized.endsWith('/api/v1/orders')) {
-    return [`${normalized}/api/orders/preview`, `${normalized}/api/orders`]
+    return {
+      previewUrls: [`${normalized}/api/orders/preview`],
+      submitUrls: [`${normalized}/api/orders`],
+    }
   }
-  return [`${normalized}/api/orders/preview`, `${normalized}/api/orders`]
+  return {
+    previewUrls: [`${normalized}/api/orders/preview`, `${normalized}/preview`],
+    submitUrls: [`${normalized}/api/orders`, normalized],
+  }
 }
 
 const RETRYABLE_ERRORS = new Set(['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT'])
@@ -56,15 +65,19 @@ export async function previewOrder(payload: CheckoutRequest): Promise<CheckoutPr
 
   for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
     const base = BACKEND_BASE_CANDIDATES[i]
-    const [previewUrl] = buildOrderApiCandidates(base)
-    try {
-      const res = await postWithRetry(previewUrl, payload, headers)
-      return res.data
-    } catch (err: any) {
-      lastError = err
-      const isLast = i === BACKEND_BASE_CANDIDATES.length - 1
-      if (FALLBACK_STATUSES.has(err.response?.status) && !isLast) continue
-      if (err.response) throw err
+    const { previewUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < previewUrls.length; j++) {
+      const previewUrl = previewUrls[j]
+      try {
+        const res = await postWithRetry(previewUrl, payload, headers)
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === previewUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response && isLastBase && isLastUrl) throw err
+      }
     }
   }
   throw lastError
@@ -76,15 +89,19 @@ export async function submitOrder(payload: CheckoutRequest): Promise<CheckoutRes
 
   for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
     const base = BACKEND_BASE_CANDIDATES[i]
-    const [, submitUrl] = buildOrderApiCandidates(base)
-    try {
-      const res = await postWithRetry(submitUrl, payload, headers)
-      return res.data
-    } catch (err: any) {
-      lastError = err
-      const isLast = i === BACKEND_BASE_CANDIDATES.length - 1
-      if (FALLBACK_STATUSES.has(err.response?.status) && !isLast) continue
-      if (err.response) throw err
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const submitUrl = submitUrls[j]
+      try {
+        const res = await postWithRetry(submitUrl, payload, headers)
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response && isLastBase && isLastUrl) throw err
+      }
     }
   }
   throw lastError

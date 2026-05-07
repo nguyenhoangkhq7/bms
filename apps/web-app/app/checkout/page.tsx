@@ -7,6 +7,9 @@ import { toast } from 'react-hot-toast'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
 import { previewCheckout, submitCheckout } from '@/src/checkout/services/checkoutService'
 import type { CheckoutPreviewResponse, CheckoutRequest, ShippingAddress, ShippingAddressRequest } from '@/src/checkout/types'
+import { getCart } from '@/src/cart/services/cartService'
+import { bookService } from '@/src/api/bookService'
+import type { CartItem } from '@/src/cart/types'
 import {
   createShippingAddress,
   deleteShippingAddress,
@@ -34,7 +37,9 @@ function normalizeAdministrativeName(value: string) {
 
 export default function CheckoutPage() {
   const [loading, setLoading] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null)
+  const [subtotalFallback, setSubtotalFallback] = useState(0)
   const [voucherCode, setVoucherCode] = useState('')
 
   const [addresses, setAddresses] = useState<ShippingAddress[]>([])
@@ -133,6 +138,35 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     loadAddresses()
+  }, [])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const userId = getEffectiveUserId()
+        const cart = await getCart(userId)
+        const ids = Array.from(new Set((cart.items ?? []).map((item: CartItem) => item.bookId)))
+        const entries = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return [id, await bookService.getBookById(id)] as const
+            } catch {
+              return [id, null] as const
+            }
+          })
+        )
+        const priceMap = new Map<number, number>()
+        for (const [id, book] of entries) {
+          priceMap.set(id, Number(book?.price ?? 0))
+        }
+        const subtotal = (cart.items ?? []).reduce((sum: number, item: CartItem) => {
+          return sum + (priceMap.get(item.bookId) ?? 0) * item.quantity
+        }, 0)
+        setSubtotalFallback(subtotal)
+      } catch {
+        setSubtotalFallback(0)
+      }
+    })()
   }, [])
 
   function openCreateForm() {
@@ -263,20 +297,29 @@ export default function CheckoutPage() {
     }
   }
 
-  async function handlePreview() {
-    const payload = buildCheckoutPayload()
-    if (!payload) return
-
-    setLoading(true)
-    try {
-      const data = await previewCheckout(payload)
-      setPreview(data)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong the xem truoc don hang')
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (!selectedAddressId) {
+      setPreview(null)
+      return
     }
-  }
+
+    const timer = window.setTimeout(async () => {
+      const payload = buildCheckoutPayload()
+      if (!payload) return
+
+      setPreviewLoading(true)
+      try {
+        const data = await previewCheckout(payload)
+        setPreview(data)
+      } catch {
+        // silent: user can still trigger manual preview to see explicit error
+      } finally {
+        setPreviewLoading(false)
+      }
+    }, 350)
+
+    return () => window.clearTimeout(timer)
+  }, [selectedAddressId, voucherCode])
 
   async function handleCheckout() {
     const payload = buildCheckoutPayload()
@@ -397,8 +440,8 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2 text-sm font-semibold text-amber-700"><Sparkles size={16} />Voucher</div>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row">
               <input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Nhap ma giam gia" className="w-full flex-1 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none" />
-              <button type="button" onClick={handlePreview} disabled={loading || !selectedAddress} className="rounded-full bg-amber-600 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-70">Ap dung</button>
             </div>
+            <p className="mt-2 text-xs text-amber-700">Phi ship va tong tien tu dong cap nhat khi ban doi dia chi hoac voucher.</p>
           </div>
         </section>
 
@@ -406,15 +449,15 @@ export default function CheckoutPage() {
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: '"Space Grotesk", "Trebuchet MS", sans-serif' }}>Hoa don tam tinh</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-600">
-              <div className="flex items-center justify-between"><span>Tien sach</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.subtotalAmount ?? 0)}</span></div>
+              <div className="flex items-center justify-between"><span>Tien sach</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.subtotalAmount ?? subtotalFallback)}</span></div>
               <div className="flex items-center justify-between"><span>Phi van chuyen</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.baseShippingFee ?? 0)}</span></div>
               <div className="flex items-center justify-between"><span>Giam phi ship</span><span className="font-semibold text-emerald-600">-{formattedCurrency.format(preview?.shippingDiscount ?? 0)}</span></div>
               <div className="flex items-center justify-between"><span>Giam gia don</span><span className="font-semibold text-emerald-600">-{formattedCurrency.format(preview?.orderDiscount ?? 0)}</span></div>
               <div className="mt-4 flex items-center justify-between border-t border-dashed border-slate-200 pt-4 text-base font-semibold text-slate-900"><span>Tong thanh toan</span><span>{formattedCurrency.format(preview?.finalTotal ?? 0)}</span></div>
+              {previewLoading && <div className="text-xs text-slate-500">Dang cap nhat phi ship...</div>}
             </div>
 
             <div className="mt-6 space-y-3">
-              <button type="button" onClick={handlePreview} disabled={loading || !selectedAddress} className="w-full rounded-full border border-slate-200 bg-white py-3 text-sm font-semibold uppercase tracking-wide text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-70">Xem truoc</button>
               <button type="button" onClick={handleCheckout} disabled={loading || !selectedAddress} className="w-full rounded-full bg-slate-900 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70">{loading ? 'Dang xu ly...' : 'Tien hanh thanh toan'}</button>
             </div>
           </div>
