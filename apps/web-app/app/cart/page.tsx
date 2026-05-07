@@ -3,12 +3,12 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ShoppingBag, Trash2 } from 'lucide-react'
-import { getCart, removeItem, updateQuantity } from '@/src/modules/cart/services/cartService'
+import { getCart, removeItem, updateQuantity } from '@/src/cart/services/cartService'
 import { bookService } from '@/src/api/bookService'
 import { toast } from 'react-hot-toast'
-import type { CartResponse } from '@/src/modules/cart/types'
+import type { CartResponse } from '@/src/cart/types'
 import type { Book } from '@/src/types'
-import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext'
+import { getEffectiveUserId } from '@/src/cart/utils/userContext'
 
 type BookMap = Record<number, Book | null>
 

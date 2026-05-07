@@ -1,6 +1,7 @@
 package fit.iuh.order.module.order_management.service;
 
 import fit.iuh.order.module.handler.CheckoutContext;
+import fit.iuh.order.module.handler.AddressSelectionHandler;
 import fit.iuh.order.module.handler.PersistOrderHandler;
 import fit.iuh.order.module.handler.PricingHandler;
 import fit.iuh.order.module.handler.StockCheckHandler;
@@ -20,6 +21,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final StockCheckHandler stockCheckHandler;
     private final VoucherCheckHandler voucherCheckHandler;
+    private final AddressSelectionHandler addressSelectionHandler;
     private final PricingHandler pricingHandler;
     private final PersistOrderHandler persistOrderHandler;
 
@@ -27,17 +29,20 @@ public class OrderService {
         OrderRepository orderRepository,
         StockCheckHandler stockCheckHandler,
         VoucherCheckHandler voucherCheckHandler,
+        AddressSelectionHandler addressSelectionHandler,
         PricingHandler pricingHandler,
         PersistOrderHandler persistOrderHandler
     ) {
         this.orderRepository = orderRepository;
         this.stockCheckHandler = stockCheckHandler;
         this.voucherCheckHandler = voucherCheckHandler;
+        this.addressSelectionHandler = addressSelectionHandler;
         this.pricingHandler = pricingHandler;
         this.persistOrderHandler = persistOrderHandler;
 
         this.stockCheckHandler
             .setNextHandler(this.voucherCheckHandler)
+            .setNextHandler(this.addressSelectionHandler)
             .setNextHandler(this.pricingHandler)
             .setNextHandler(this.persistOrderHandler);
     }
@@ -46,6 +51,7 @@ public class OrderService {
     public OrderResponse createOrder(OrderRequest request) {
         CheckoutContext context = CheckoutContext.builder()
             .userId(request.getUserId())
+            .shippingAddressId(request.getShippingAddressId())
             .shippingAddress(request.getShippingAddress())
             .shippingLatitude(request.getShippingLatitude())
             .shippingLongitude(request.getShippingLongitude())
@@ -68,6 +74,7 @@ public class OrderService {
     public OrderPreviewResponse previewOrder(OrderRequest request) {
         CheckoutContext context = CheckoutContext.builder()
             .userId(request.getUserId())
+            .shippingAddressId(request.getShippingAddressId())
             .shippingAddress(request.getShippingAddress())
             .shippingLatitude(request.getShippingLatitude())
             .shippingLongitude(request.getShippingLongitude())

@@ -1,10 +1,32 @@
 export interface CheckoutRequest {
   userId: number;
-  shippingAddress: string;
-  shippingLatitude: number;
-  shippingLongitude: number;
+  shippingAddressId?: number;
+  shippingAddress?: string;
+  shippingLatitude?: number;
+  shippingLongitude?: number;
   voucherCode?: string;
   items?: Array<{ bookId: number; quantity: number }>;
+}
+
+export interface ShippingAddress {
+  id: number;
+  userId: number;
+  recipientName: string;
+  phoneNumber: string;
+  addressLine: string;
+  latitude: number;
+  longitude: number;
+  isDefault: boolean;
+}
+
+export interface ShippingAddressRequest {
+  userId: number;
+  recipientName: string;
+  phoneNumber: string;
+  addressLine: string;
+  latitude: number;
+  longitude: number;
+  isDefault?: boolean;
 }
 
 export interface CheckoutPreviewResponse {

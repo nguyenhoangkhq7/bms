@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { bookService } from '@/src/api/bookService';
-import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
-import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
+import { useAddToCart } from '@/src/cart/hooks/useAddToCart';
+import { getEffectiveUserId } from '@/src/cart/utils/userContext';
 import type { Book } from '@/src/types';
 
 interface ReviewItem {

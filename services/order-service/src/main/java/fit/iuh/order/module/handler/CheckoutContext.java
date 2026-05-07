@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CheckoutContext {
     private Long userId;
+    private Long shippingAddressId;
     private String shippingAddress;
     private Double shippingLatitude;
     private Double shippingLongitude;

@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class OrderRequest {
     private Long userId;
+    private Long shippingAddressId;
     private String shippingAddress;
     private Double shippingLatitude;
     private Double shippingLongitude;

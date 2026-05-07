@@ -1,12 +1,6 @@
-import axios from 'axios'
 import type { AddToCartRequest, CartMutationRequest } from '../types'
 import { getEffectiveUserId } from '../utils/userContext'
-
-// Use Next.js API routes to proxy to backend (avoids CORS + handles auth)
-const ADD_ENDPOINT = '/api/cart/add'
-const GET_ENDPOINT = '/api/cart/get'
-const REMOVE_ENDPOINT = '/api/cart/remove'
-const UPDATE_QTY_ENDPOINT = '/api/cart/update-quantity'
+import { cartApiService } from '@/src/api/cartApiService'
 
 function emitCartChanged() {
   if (typeof window !== 'undefined') {
@@ -14,11 +8,9 @@ function emitCartChanged() {
   }
 }
 
-function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  return headers
+function getAuthToken() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+  return token ? `Bearer ${token}` : null
 }
 
 function toClientError(e: any) {
@@ -35,11 +27,11 @@ function toClientError(e: any) {
 
 export async function addItem(payload: AddToCartRequest) {
   try {
-    const headers = getAuthHeaders()
+    const token = getAuthToken()
     const uid = payload.userId ?? getEffectiveUserId()
-    const res = await axios.post(ADD_ENDPOINT, { ...payload, userId: uid }, { headers })
+    const data = await cartApiService.add({ ...payload, userId: uid }, token)
     emitCartChanged()
-    return res.data
+    return data
   } catch (e: any) {
     throw toClientError(e)
   }
@@ -47,8 +39,7 @@ export async function addItem(payload: AddToCartRequest) {
 
 export async function getCart(userId?: number) {
   try {
-    const headers = getAuthHeaders()
-
+    const token = getAuthToken()
     // prefer explicit userId; fallback to local/mock user context
     const uid = userId ?? getEffectiveUserId()
     if (!uid) {
@@ -56,8 +47,8 @@ export async function getCart(userId?: number) {
       return { id: null, userId: null, totalEstimated: 0, items: [] }
     }
 
-    const res = await axios.get(`${GET_ENDPOINT}?userId=${uid}`, { headers })
-    return res.data
+    const data = await cartApiService.get(uid.toString(), token)
+    return data
   } catch (e: any) {
     throw toClientError(e)
   }
@@ -65,10 +56,10 @@ export async function getCart(userId?: number) {
 
 export async function removeItem(payload: CartMutationRequest) {
   try {
-    const headers = getAuthHeaders()
-    const res = await axios.post(REMOVE_ENDPOINT, payload, { headers })
+    const token = getAuthToken()
+    const data = await cartApiService.remove(payload, token)
     emitCartChanged()
-    return res.data
+    return data
   } catch (e: any) {
     throw toClientError(e)
   }
@@ -76,10 +67,10 @@ export async function removeItem(payload: CartMutationRequest) {
 
 export async function updateQuantity(payload: CartMutationRequest) {
   try {
-    const headers = getAuthHeaders()
-    const res = await axios.post(UPDATE_QTY_ENDPOINT, payload, { headers })
+    const token = getAuthToken()
+    const data = await cartApiService.updateQuantity(payload, token)
     emitCartChanged()
-    return res.data
+    return data
   } catch (e: any) {
     throw toClientError(e)
   }
