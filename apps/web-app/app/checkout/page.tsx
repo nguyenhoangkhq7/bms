@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
 import { ArrowLeft, MapPin, Plus, Sparkles, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
@@ -16,17 +15,21 @@ import {
   updateShippingAddress,
 } from '@/src/api/shippingAddressService'
 import { searchVietnamAddress } from '@/src/api/geocodingService'
-
-const DEFAULT_LAT = 10.822159
-const DEFAULT_LNG = 106.686824
-const AddressMapPicker = dynamic(() => import('@/src/checkout/components/AddressMapPicker'), { ssr: false })
+import { getDistrictsByProvinceCode, getProvinces, type District, type Province } from '@/src/api/vnAddressService'
 
 const emptyForm = {
   recipientName: '',
   phoneNumber: '',
-  addressLine: '',
-  latitude: String(DEFAULT_LAT),
-  longitude: String(DEFAULT_LNG),
+  detailAddress: '',
+  provinceCode: '',
+  districtCode: '',
+}
+
+function normalizeAdministrativeName(value: string) {
+  return value
+    .replace(/^(quan|huyen|thi xa|thanh pho)\s+/i, '')
+    .replace(/^(tinh|thanh pho)\s+/i, '')
+    .trim()
 }
 
 export default function CheckoutPage() {
@@ -41,8 +44,9 @@ export default function CheckoutPage() {
   const [showAddressForm, setShowAddressForm] = useState(false)
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null)
   const [addressForm, setAddressForm] = useState(emptyForm)
-  const [addressSuggestions, setAddressSuggestions] = useState<Array<{ displayName: string; latitude: number; longitude: number }>>([])
-  const [suggestionLoading, setSuggestionLoading] = useState(false)
+
+  const [provinces, setProvinces] = useState<Province[]>([])
+  const [districts, setDistricts] = useState<District[]>([])
 
   const formattedCurrency = useMemo(
     () =>
@@ -54,15 +58,61 @@ export default function CheckoutPage() {
     []
   )
 
-  function parseNumber(value: string) {
-    const num = Number.parseFloat(value)
-    return Number.isFinite(num) ? num : null
-  }
-
   const selectedAddress = useMemo(
     () => addresses.find((item) => item.id === selectedAddressId) ?? null,
     [addresses, selectedAddressId]
   )
+
+  async function resolveCoordinates(districtName: string, provinceName: string) {
+    const normalizedDistrict = normalizeAdministrativeName(districtName)
+    const normalizedProvince = normalizeAdministrativeName(provinceName)
+
+    const queries = [
+      `${districtName}, ${provinceName}, Viet Nam`,
+      `${normalizedDistrict}, ${provinceName}, Viet Nam`,
+      `${districtName}, ${normalizedProvince}, Viet Nam`,
+      `${normalizedDistrict}, ${normalizedProvince}, Viet Nam`,
+      `${provinceName}, Viet Nam`,
+      `${normalizedProvince}, Viet Nam`,
+    ]
+
+    for (const query of queries) {
+      const results = await searchVietnamAddress(query)
+      if (results.length > 0) {
+        return results[0]
+      }
+    }
+
+    return null
+  }
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const result = await getProvinces()
+        setProvinces(result)
+      } catch (e: any) {
+        toast.error(e?.message ?? 'Khong tai duoc tinh/thanh')
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
+    const provinceCode = Number(addressForm.provinceCode)
+    if (!Number.isFinite(provinceCode) || provinceCode <= 0) {
+      setDistricts([])
+      return
+    }
+
+    ;(async () => {
+      try {
+        const result = await getDistrictsByProvinceCode(provinceCode)
+        setDistricts(result)
+      } catch {
+        setDistricts([])
+      }
+    })()
+  }, [addressForm.provinceCode])
 
   async function loadAddresses() {
     const userId = getEffectiveUserId()
@@ -85,37 +135,9 @@ export default function CheckoutPage() {
     loadAddresses()
   }, [])
 
-  useEffect(() => {
-    if (!showAddressForm) {
-      setAddressSuggestions([])
-      return
-    }
-
-    const keyword = addressForm.addressLine.trim()
-    if (keyword.length < 6) {
-      setAddressSuggestions([])
-      return
-    }
-
-    const timer = window.setTimeout(async () => {
-      setSuggestionLoading(true)
-      try {
-        const result = await searchVietnamAddress(keyword)
-        setAddressSuggestions(result)
-      } catch {
-        setAddressSuggestions([])
-      } finally {
-        setSuggestionLoading(false)
-      }
-    }, 450)
-
-    return () => window.clearTimeout(timer)
-  }, [addressForm.addressLine, showAddressForm])
-
   function openCreateForm() {
     setEditingAddressId(null)
     setAddressForm(emptyForm)
-    setAddressSuggestions([])
     setShowAddressForm(true)
   }
 
@@ -124,11 +146,11 @@ export default function CheckoutPage() {
     setAddressForm({
       recipientName: address.recipientName,
       phoneNumber: address.phoneNumber,
-      addressLine: address.addressLine,
-      latitude: String(address.latitude),
-      longitude: String(address.longitude),
+      detailAddress: address.addressLine,
+      provinceCode: '',
+      districtCode: '',
     })
-    setAddressSuggestions([])
+    setDistricts([])
     setShowAddressForm(true)
   }
 
@@ -139,30 +161,41 @@ export default function CheckoutPage() {
       return
     }
 
-    const lat = parseNumber(addressForm.latitude)
-    const lng = parseNumber(addressForm.longitude)
+    const provinceCode = Number(addressForm.provinceCode)
+    const districtCode = Number(addressForm.districtCode)
+    const province = provinces.find((item) => item.code === provinceCode)
+    const district = districts.find((item) => item.code === districtCode)
 
-    if (!addressForm.recipientName.trim() || !addressForm.phoneNumber.trim() || !addressForm.addressLine.trim()) {
+    if (!addressForm.recipientName.trim() || !addressForm.phoneNumber.trim() || !addressForm.detailAddress.trim()) {
       toast.error('Vui long nhap day du thong tin dia chi')
       return
     }
-    if (lat === null || lng === null) {
-      toast.error('Toa do dia chi khong hop le')
+
+    if (!province || !district) {
+      toast.error('Vui long chon tinh/thanh va quan/huyen')
       return
     }
 
-    const payload: ShippingAddressRequest = {
-      userId,
-      recipientName: addressForm.recipientName.trim(),
-      phoneNumber: addressForm.phoneNumber.trim(),
-      addressLine: addressForm.addressLine.trim(),
-      latitude: lat,
-      longitude: lng,
-      isDefault: addresses.length === 0,
-    }
+    const fullAddress = `${addressForm.detailAddress.trim()}, ${district.name}, ${province.name}, Viet Nam`
 
     setLoading(true)
     try {
+      const best = await resolveCoordinates(district.name, province.name)
+
+      if (!best) {
+        throw new Error('Khong tim thay toa do theo huyen/tinh. Vui long thu huyen/tinh khac.')
+      }
+
+      const payload: ShippingAddressRequest = {
+        userId,
+        recipientName: addressForm.recipientName.trim(),
+        phoneNumber: addressForm.phoneNumber.trim(),
+        addressLine: fullAddress,
+        latitude: best.latitude,
+        longitude: best.longitude,
+        isDefault: addresses.length === 0,
+      }
+
       const saved = editingAddressId
         ? await updateShippingAddress(editingAddressId, payload)
         : await createShippingAddress(payload)
@@ -261,9 +294,6 @@ export default function CheckoutPage() {
     }
   }
 
-  const formLat = parseNumber(addressForm.latitude)
-  const formLng = parseNumber(addressForm.longitude)
-
   return (
     <div className="min-h-[calc(100vh-84px)] bg-[radial-gradient(circle_at_top,_#fff5e6_0%,_#f8fafc_40%,_#e9eef6_100%)] px-4 py-8 sm:px-8">
       <div className="mx-auto grid w-full max-w-[1240px] gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -274,7 +304,7 @@ export default function CheckoutPage() {
               <h1 className="mt-2 text-3xl font-semibold text-slate-900" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
                 Chon dia chi giao hang
               </h1>
-              <p className="mt-2 text-sm text-slate-600">Luu nhieu dia chi, dat mac dinh, va dat hang nhanh nhu Shopee.</p>
+              <p className="mt-2 text-sm text-slate-600">Chon dia chi da luu hoac them dia chi moi theo tinh/huyen.</p>
             </div>
             <Link href="/cart" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300">
               <ArrowLeft size={16} />
@@ -288,52 +318,30 @@ export default function CheckoutPage() {
                 <MapPin size={16} className="text-amber-600" />
                 Dia chi da luu
               </div>
-              <button
-                type="button"
-                onClick={openCreateForm}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-slate-800"
-              >
+              <button type="button" onClick={openCreateForm} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-slate-800">
                 <Plus size={14} />
                 Them dia chi
               </button>
             </div>
 
             {addressLoading && <p className="text-sm text-slate-500">Dang tai dia chi...</p>}
-
             {!addressLoading && addresses.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                Chua co dia chi nao. Bam "Them dia chi" de bat dau.
-              </div>
+              <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Chua co dia chi nao.</div>
             )}
 
             <div className="grid gap-3 md:grid-cols-2">
               {addresses.map((item) => {
                 const selected = item.id === selectedAddressId
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedAddressId(item.id)}
-                    className={`rounded-2xl border p-4 text-left transition ${selected ? 'border-amber-400 bg-amber-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                  >
+                  <button key={item.id} type="button" onClick={() => setSelectedAddressId(item.id)} className={`rounded-2xl border p-4 text-left transition ${selected ? 'border-amber-400 bg-amber-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="truncate text-sm font-semibold text-slate-900">{item.recipientName}</div>
-                      {item.isDefault && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                          <Star size={10} /> Mac dinh
-                        </span>
-                      )}
+                      {item.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700"><Star size={10} /> Mac dinh</span>}
                     </div>
                     <p className="mt-1 text-xs text-slate-500">{item.phoneNumber}</p>
                     <p className="mt-2 line-clamp-2 text-sm text-slate-700">{item.addressLine}</p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">Lat {item.latitude}</span>
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">Lng {item.longitude}</span>
-                    </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                      {!item.isDefault && (
-                        <span onClick={(e) => { e.stopPropagation(); handleSetDefault(item.id) }} className="cursor-pointer rounded-full border border-emerald-300 px-2 py-1 text-emerald-700">Dat mac dinh</span>
-                      )}
+                      {!item.isDefault && <span onClick={(e) => { e.stopPropagation(); handleSetDefault(item.id) }} className="cursor-pointer rounded-full border border-emerald-300 px-2 py-1 text-emerald-700">Dat mac dinh</span>}
                       <span onClick={(e) => { e.stopPropagation(); openEditForm(item) }} className="cursor-pointer rounded-full border border-slate-300 px-2 py-1 text-slate-700">Sua</span>
                       <span onClick={(e) => { e.stopPropagation(); handleDeleteAddress(item.id) }} className="cursor-pointer rounded-full border border-rose-300 px-2 py-1 text-rose-700">Xoa</span>
                     </div>
@@ -349,59 +357,35 @@ export default function CheckoutPage() {
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <input value={addressForm.recipientName} onChange={(e) => setAddressForm((p) => ({ ...p, recipientName: e.target.value }))} placeholder="Nguoi nhan" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
                 <input value={addressForm.phoneNumber} onChange={(e) => setAddressForm((p) => ({ ...p, phoneNumber: e.target.value }))} placeholder="So dien thoai" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
-                <input value={addressForm.latitude} onChange={(e) => setAddressForm((p) => ({ ...p, latitude: e.target.value }))} placeholder="Latitude" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
-                <input value={addressForm.longitude} onChange={(e) => setAddressForm((p) => ({ ...p, longitude: e.target.value }))} placeholder="Longitude" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
+                <select
+                  value={addressForm.provinceCode}
+                  onChange={(e) => setAddressForm((p) => ({ ...p, provinceCode: e.target.value, districtCode: '' }))}
+                  className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
+                >
+                  <option value="">Chon tinh/thanh pho</option>
+                  {provinces.map((item) => (
+                    <option key={item.code} value={item.code}>{item.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={addressForm.districtCode}
+                  onChange={(e) => setAddressForm((p) => ({ ...p, districtCode: e.target.value }))}
+                  className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
+                >
+                  <option value="">Chon quan/huyen</option>
+                  {districts.map((item) => (
+                    <option key={item.code} value={item.code}>{item.name}</option>
+                  ))}
+                </select>
               </div>
 
-              {formLat !== null && formLng !== null ? (
-                <div className="mt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-800">Chon toa do tren ban do</p>
-                  <AddressMapPicker
-                    latitude={formLat}
-                    longitude={formLng}
-                    onChange={(coords) =>
-                      setAddressForm((p) => ({
-                        ...p,
-                        latitude: coords.latitude.toFixed(6),
-                        longitude: coords.longitude.toFixed(6),
-                      }))
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-white/70 p-3 text-xs text-amber-700">
-                  Nhap latitude/longitude hop le de hien thi ban do.
-                </div>
-              )}
+              <input
+                value={addressForm.detailAddress}
+                onChange={(e) => setAddressForm((p) => ({ ...p, detailAddress: e.target.value }))}
+                placeholder="So nha, duong, xa/phuong"
+                className="mt-3 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
+              />
 
-              <textarea value={addressForm.addressLine} onChange={(e) => setAddressForm((p) => ({ ...p, addressLine: e.target.value }))} placeholder="So nha, duong, phuong/xa, quan/huyen, tinh/thanh" className="mt-3 min-h-[100px] w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
-              <div className="mt-2">
-                {suggestionLoading && (
-                  <p className="text-xs text-amber-700">Dang tim goi y dia chi...</p>
-                )}
-                {!suggestionLoading && addressSuggestions.length > 0 && (
-                  <div className="max-h-56 overflow-auto rounded-xl border border-amber-200 bg-white">
-                    {addressSuggestions.map((suggestion, index) => (
-                      <button
-                        key={`${suggestion.latitude}-${suggestion.longitude}-${index}`}
-                        type="button"
-                        onClick={() => {
-                          setAddressForm((p) => ({
-                            ...p,
-                            addressLine: suggestion.displayName,
-                            latitude: suggestion.latitude.toFixed(6),
-                            longitude: suggestion.longitude.toFixed(6),
-                          }))
-                          setAddressSuggestions([])
-                        }}
-                        className="block w-full border-b border-amber-100 px-3 py-2 text-left text-xs text-slate-700 last:border-b-0 hover:bg-amber-50"
-                      >
-                        {suggestion.displayName}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
               <div className="mt-3 flex gap-2">
                 <button type="button" onClick={handleSaveAddress} className="rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-amber-500">Luu dia chi</button>
                 <button type="button" onClick={() => setShowAddressForm(false)} className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700">Dong</button>
@@ -410,34 +394,17 @@ export default function CheckoutPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-dashed border-amber-200 bg-amber-50/70 p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
-              <Sparkles size={16} />
-              Voucher
-            </div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-amber-700"><Sparkles size={16} />Voucher</div>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-              <input
-                value={voucherCode}
-                onChange={(event) => setVoucherCode(event.target.value)}
-                placeholder="Nhap ma giam gia"
-                className="w-full flex-1 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={handlePreview}
-                disabled={loading || !selectedAddress}
-                className="rounded-full bg-amber-600 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                Ap dung
-              </button>
+              <input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Nhap ma giam gia" className="w-full flex-1 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none" />
+              <button type="button" onClick={handlePreview} disabled={loading || !selectedAddress} className="rounded-full bg-amber-600 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-70">Ap dung</button>
             </div>
           </div>
         </section>
 
         <aside className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: '"Space Grotesk", "Trebuchet MS", sans-serif' }}>
-              Hoa don tam tinh
-            </h2>
+            <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: '"Space Grotesk", "Trebuchet MS", sans-serif' }}>Hoa don tam tinh</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <div className="flex items-center justify-between"><span>Tien sach</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.subtotalAmount ?? 0)}</span></div>
               <div className="flex items-center justify-between"><span>Phi van chuyen</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.baseShippingFee ?? 0)}</span></div>
@@ -454,11 +421,9 @@ export default function CheckoutPage() {
 
           <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-[#111827] via-[#1f2937] to-[#334155] p-6 text-white shadow-[0_18px_40px_rgba(15,23,42,0.35)]">
             <p className="text-xs uppercase tracking-[0.3em] text-amber-200">Dia chi dang chon</p>
-            <h3 className="mt-2 text-xl font-semibold" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
-              {selectedAddress?.recipientName ?? 'Chua chon'}
-            </h3>
+            <h3 className="mt-2 text-xl font-semibold" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>{selectedAddress?.recipientName ?? 'Chua chon'}</h3>
             <p className="mt-2 text-sm text-slate-200">{selectedAddress?.addressLine ?? 'Vui long them hoac chon dia chi de tiep tuc.'}</p>
-            <p className="mt-3 text-xs text-slate-300">{selectedAddress ? `${selectedAddress.phoneNumber} • ${selectedAddress.latitude}, ${selectedAddress.longitude}` : ''}</p>
+            <p className="mt-3 text-xs text-slate-300">{selectedAddress ? selectedAddress.phoneNumber : ''}</p>
           </div>
         </aside>
       </div>

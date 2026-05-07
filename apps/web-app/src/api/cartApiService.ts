@@ -1,9 +1,11 @@
 import axios from 'axios'
 
 const configuredBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || process.env.BACKEND_API_BASE_URL
-const BACKEND_BASE_CANDIDATES = configuredBase
-  ? [configuredBase]
-  : ['http://localhost/api/v1/orders', '/api/v1/orders', 'http://localhost:8083']
+const DEFAULT_BASES = ['http://localhost/api/v1/orders', 'http://localhost:8083']
+const BACKEND_BASE_CANDIDATES = Array.from(
+  new Set([...(configuredBase ? [configuredBase] : []), ...DEFAULT_BASES])
+)
+const FALLBACK_STATUSES = new Set([404, 502, 503, 504])
 
 const RETRYABLE_ERRORS = new Set(['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT'])
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -56,8 +58,7 @@ export const cartApiService = {
       } catch (err: any) {
         lastError = err
         const isLast = i === BACKEND_BASE_CANDIDATES.length - 1
-        // If it's a 404 and not the last candidate, try the next one
-        if (err.response?.status === 404 && !isLast) continue
+        if (FALLBACK_STATUSES.has(err.response?.status) && !isLast) continue
         // For other errors with response (400, 500, etc.), throw immediately
         if (err.response) throw err
       }
@@ -78,15 +79,11 @@ export const cartApiService = {
       } catch (err: any) {
         lastError = err
         const isLast = i === BACKEND_BASE_CANDIDATES.length - 1
-        if (err.response?.status === 404) {
-          // If the backend returns 404 (user has no cart), that's a valid "empty" result
-          // But if we are unsure if it's the right base, we might want to continue.
-          // However, 404 is a common response for "cart not found".
-          // Let's assume if it contains 'api/v1', it's the right base.
-          if (base.includes('api/v1')) {
-            return { id: null, userId: null, totalEstimated: 0, items: [] }
-          }
-          if (!isLast) continue
+        if (err.response?.status === 404 && base.includes('api/v1')) {
+          return { id: null, userId: null, totalEstimated: 0, items: [] }
+        }
+        if (FALLBACK_STATUSES.has(err.response?.status) && !isLast) {
+          continue
         }
         if (err.response) throw err
       }
@@ -111,7 +108,7 @@ export const cartApiService = {
       } catch (err: any) {
         lastError = err
         const isLast = i === BACKEND_BASE_CANDIDATES.length - 1
-        if (err.response?.status === 404 && !isLast) continue
+        if (FALLBACK_STATUSES.has(err.response?.status) && !isLast) continue
         if (err.response) throw err
       }
     }
@@ -131,7 +128,7 @@ export const cartApiService = {
       } catch (err: any) {
         lastError = err
         const isLast = i === BACKEND_BASE_CANDIDATES.length - 1
-        if (err.response?.status === 404 && !isLast) continue
+        if (FALLBACK_STATUSES.has(err.response?.status) && !isLast) continue
         if (err.response) throw err
       }
     }
