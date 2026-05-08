@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getCart } from '@/src/modules/cart/services/cartService';
-import type { CartItem } from '@/src/modules/cart/types';
+import { getCart } from '@/src/cart/services/cartService';
+import type { CartItem } from '@/src/cart/types';
 import { useAuth } from '@/src/auth/context';
 
 export default function Header() {

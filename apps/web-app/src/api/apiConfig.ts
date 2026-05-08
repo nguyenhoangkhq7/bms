@@ -16,12 +16,7 @@ export const handleResponse = async <T>(response: Response): Promise<T | null> =
         }
         throw new Error(errorMessage || 'Lỗi khi gọi API!');
     }
-    
-    // Đọc text trước để kiểm tra body có rỗng không
-    const text = await response.text();
-    if (!text) {
-        return null; // Trả về null nếu body rỗng (thường gặp ở DELETE trả về 200 OK hoặc 204 No Content)
-    }
-    
-    return JSON.parse(text) as T;
+    // Trạng thái 204 (No Content) thường dùng cho hàm DELETE
+    if (response.status === 204) return null;
+    return response.json() as Promise<T>;
 };

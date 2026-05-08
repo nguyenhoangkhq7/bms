@@ -22,9 +22,7 @@ RUN mvn clean package -DskipTests
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-jammy
 
-# Add a non-root user for better security
-RUN groupadd -r spring && useradd -r -g spring spring
-USER spring:spring
+# Removed non-root user temporarily to bypass Windows Docker Desktop passwd bug
 
 WORKDIR /app
 

@@ -21,10 +21,12 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { bookService } from '@/src/api/bookService'; 
 import { categoryService } from '@/src/api/categoryService';
-import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
-import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
+
+import { useAddToCart } from '@/src/cart/hooks/useAddToCart';
+import { getEffectiveUserId } from '@/src/cart/utils/userContext';
 import { useAuth } from '@/src/auth/context';
 import { useRouter } from 'next/navigation';
+
 import type { Book, Category } from '@/src/types';
 
 // Interface cho danh mục dạng cây (có danh mục con)
