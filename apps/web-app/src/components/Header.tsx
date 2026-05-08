@@ -7,8 +7,8 @@ import {
   ShoppingCart,
   User,
   Heart,
-  PlusCircle,
   LogOut,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -83,6 +83,7 @@ export default function Header() {
         <div className="flex w-full flex-1 items-center justify-between gap-3 lg:gap-8">
           <Link
             href="/"
+            onClick={() => window.dispatchEvent(new Event('clearFilters'))}
             className="flex items-center gap-2 text-xl font-bold text-gray-900 sm:text-2xl"
           >
             <BookOpen size={30} strokeWidth={2.5} />
@@ -97,7 +98,7 @@ export default function Header() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tim kiem sach, tac gia, nha xuat ban..."
+              placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
               className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
             />
             <button
@@ -110,37 +111,43 @@ export default function Header() {
 
           <nav className="flex items-center gap-3 text-gray-700 sm:gap-5">
             <div className="hidden items-center gap-6 text-sm font-medium xl:flex">
-              <Link href="/" className="transition-colors hover:text-black">
-                Trang chu
-              </Link>
-              <Link href="/" className="transition-colors hover:text-black">
-                Danh muc
-              </Link>
               <Link
-                href="/add-book"
-                className="flex items-center gap-1.5 transition-colors hover:text-black"
-                style={{
-                  background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                  color: '#fff',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.3)';
-                }}
+                href="/"
+                onClick={() => window.dispatchEvent(new Event('clearFilters'))}
+                className="transition-colors hover:text-black"
               >
-                <PlusCircle size={16} />
-                Them sach
+                Trang chủ
               </Link>
+              <Link href="/orders" className="transition-colors hover:text-black">
+                Đơn hàng
+              </Link>
+              {user?.role === 'ADMIN' && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-1.5 transition-colors hover:text-black"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                  }}
+                >
+                  <Shield size={16} />
+                  Quản lý
+                </Link>
+              )}
             </div>
 
             <div className="flex items-center gap-3 border-l border-gray-300 pl-3 sm:gap-5 sm:pl-5">
@@ -160,8 +167,8 @@ export default function Header() {
                     <span className="text-sm font-bold text-gray-900">{user?.fullName || user?.username}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Link 
-                      href="/profile" 
+                    <Link
+                      href="/profile"
                       title="Hồ sơ cá nhân"
                       className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600 hover:text-[#1F4788]"
                     >
@@ -185,7 +192,7 @@ export default function Header() {
                 >
                   <User size={20} />
                   <span className="hidden text-sm font-medium sm:block">
-                    Dang nhap
+                    Đăng nhập
                   </span>
                 </button>
               )}
@@ -198,7 +205,7 @@ export default function Header() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tim kiem sach, tac gia, nha xuat ban..."
+            placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
             className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
           />
           <button

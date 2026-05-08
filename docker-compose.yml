@@ -74,6 +74,10 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/product_db
       - SPRING_DATASOURCE_USERNAME=product_db
       - SPRING_DATASOURCE_PASSWORD=product_db
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
     networks:
       - bookstore-network
 
@@ -158,7 +162,7 @@ services:
     depends_on:
       - order-service
     ports:
-      - "${WEB_APP_PORT:-3000}:3000"
+      - "3000:3000"
     networks:
       - bookstore-network
 
