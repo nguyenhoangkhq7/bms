@@ -8,15 +8,7 @@ import { bookService } from '@/src/api/bookService';
 
 import { useAddToCart } from '@/src/cart/hooks/useAddToCart';
 import { getEffectiveUserId } from '@/src/cart/utils/userContext';
-import type { Book } from '@/src/types';
-
-interface ReviewItem {
-  id: number;
-  content: string;
-  rating: number;
-  userName?: string;
-}
-
+import type { Book, Review } from '@/src/types';
 
 import { reviewService } from '@/src/api/reviewService';
 import { useAuth } from '@/src/auth/context';

@@ -347,13 +347,13 @@ export default function CheckoutPage() {
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-[#a28354]">Checkout</p>
               <h1 className="mt-2 text-3xl font-semibold text-slate-900" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
-                Chon dia chi giao hang
+                Chọn địa chỉ giao hàng
               </h1>
-              <p className="mt-2 text-sm text-slate-600">Chon dia chi da luu hoac them dia chi moi theo tinh/huyen.</p>
+              <p className="mt-2 text-sm text-slate-600">Chọn địa chỉ đã lưu hoặc thêm địa chỉ mới.</p>
             </div>
             <Link href="/cart" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300">
               <ArrowLeft size={16} />
-              Ve gio hang
+              Về giỏ hàng
             </Link>
           </div>
 
@@ -361,17 +361,17 @@ export default function CheckoutPage() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <MapPin size={16} className="text-amber-600" />
-                Dia chi da luu
+                Địa chỉ đã lưu
               </div>
               <button type="button" onClick={openCreateForm} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-slate-800">
                 <Plus size={14} />
-                Them dia chi
+                Thêm địa chỉ
               </button>
             </div>
 
-            {addressLoading && <p className="text-sm text-slate-500">Dang tai dia chi...</p>}
+            {addressLoading && <p className="text-sm text-slate-500">Đang tải...</p>}
             {!addressLoading && addresses.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Chua co dia chi nao.</div>
+              <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Vui lòng thêm địa chỉ.</div>
             )}
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -398,7 +398,7 @@ export default function CheckoutPage() {
 
           {showAddressForm && (
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-800">{editingAddressId ? 'Cap nhat dia chi' : 'Dia chi moi'}</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-800">{editingAddressId ? 'Cập nhật địa chỉ' : 'Địa chỉ mới'}</h3>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <input value={addressForm.recipientName} onChange={(e) => setAddressForm((p) => ({ ...p, recipientName: e.target.value }))} placeholder="Nguoi nhan" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
                 <input value={addressForm.phoneNumber} onChange={(e) => setAddressForm((p) => ({ ...p, phoneNumber: e.target.value }))} placeholder="So dien thoai" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400" />
@@ -407,7 +407,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setAddressForm((p) => ({ ...p, provinceCode: e.target.value, districtCode: '' }))}
                   className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
                 >
-                  <option value="">Chon tinh/thanh pho</option>
+                  <option value="">Chọn tỉnh/thành phố</option>
                   {provinces.map((item) => (
                     <option key={item.code} value={item.code}>{item.name}</option>
                   ))}
@@ -417,7 +417,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setAddressForm((p) => ({ ...p, districtCode: e.target.value }))}
                   className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
                 >
-                  <option value="">Chon quan/huyen</option>
+                  <option value="">Chọn quận/huyện</option>
                   {districts.map((item) => (
                     <option key={item.code} value={item.code}>{item.name}</option>
                   ))}
@@ -443,20 +443,20 @@ export default function CheckoutPage() {
             <div className="mt-3 flex flex-col gap-3 sm:flex-row">
               <input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Nhap ma giam gia" className="w-full flex-1 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none" />
             </div>
-            <p className="mt-2 text-xs text-amber-700">Phi ship va tong tien tu dong cap nhat khi ban doi dia chi hoac voucher.</p>
+            {/* <p className="mt-2 text-xs text-amber-700">Phi ship va tong tien tu dong cap nhat khi ban doi dia chi hoac voucher.</p> */}
           </div>
         </section>
 
         <aside className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: '"Space Grotesk", "Trebuchet MS", sans-serif' }}>Hoa don tam tinh</h2>
+            <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: '"Space Grotesk", "Trebuchet MS", sans-serif' }}>Hóa đơn tạm tính</h2>
             <div className="mt-4 space-y-3 text-sm text-slate-600">
-              <div className="flex items-center justify-between"><span>Tien sach</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.subtotalAmount ?? subtotalFallback)}</span></div>
-              <div className="flex items-center justify-between"><span>Phi van chuyen</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.baseShippingFee ?? 0)}</span></div>
-              <div className="flex items-center justify-between"><span>Giam phi ship</span><span className="font-semibold text-emerald-600">-{formattedCurrency.format(preview?.shippingDiscount ?? 0)}</span></div>
-              <div className="flex items-center justify-between"><span>Giam gia don</span><span className="font-semibold text-emerald-600">-{formattedCurrency.format(preview?.orderDiscount ?? 0)}</span></div>
-              <div className="mt-4 flex items-center justify-between border-t border-dashed border-slate-200 pt-4 text-base font-semibold text-slate-900"><span>Tong thanh toan</span><span>{formattedCurrency.format(preview?.finalTotal ?? 0)}</span></div>
-              {previewLoading && <div className="text-xs text-slate-500">Dang cap nhat phi ship...</div>}
+              <div className="flex items-center justify-between"><span>Tiền sách</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.subtotalAmount ?? subtotalFallback)}</span></div>
+              <div className="flex items-center justify-between"><span>Phí vận chuyển</span><span className="font-semibold text-slate-900">{formattedCurrency.format(preview?.baseShippingFee ?? 0)}</span></div>
+              <div className="flex items-center justify-between"><span>Giảm phí ship</span><span className="font-semibold text-emerald-600">-{formattedCurrency.format(preview?.shippingDiscount ?? 0)}</span></div>
+              <div className="flex items-center justify-between"><span>Khuyến mãi</span><span className="font-semibold text-emerald-600">-{formattedCurrency.format(preview?.orderDiscount ?? 0)}</span></div>
+              <div className="mt-4 flex items-center justify-between border-t border-dashed border-slate-200 pt-4 text-base font-semibold text-slate-900"><span>Tổng thanh toán</span><span>{formattedCurrency.format(preview?.finalTotal ?? 0)}</span></div>
+              {previewLoading && <div className="text-xs text-slate-500">Đang cập nhật...</div>}
             </div>
 
             <div className="mt-6 space-y-3">
@@ -465,7 +465,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-[#111827] via-[#1f2937] to-[#334155] p-6 text-white shadow-[0_18px_40px_rgba(15,23,42,0.35)]">
-            <p className="text-xs uppercase tracking-[0.3em] text-amber-200">Dia chi dang chon</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-amber-200">Địa chỉ giao hàng</p>
             <h3 className="mt-2 text-xl font-semibold" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>{selectedAddress?.recipientName ?? 'Chua chon'}</h3>
             <p className="mt-2 text-sm text-slate-200">{selectedAddress?.addressLine ?? 'Vui long them hoac chon dia chi de tiep tuc.'}</p>
             <p className="mt-3 text-xs text-slate-300">{selectedAddress ? selectedAddress.phoneNumber : ''}</p>

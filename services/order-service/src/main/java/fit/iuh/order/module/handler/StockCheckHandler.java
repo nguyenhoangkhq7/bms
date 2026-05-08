@@ -51,6 +51,12 @@ public class StockCheckHandler extends CheckoutHandler {
         BigDecimal subtotal = BigDecimal.ZERO;
 
         for (OrderItemRequest itemRequest : itemRequests) {
+            if (itemRequest.getQuantity() <= 0) {
+                throw new BadRequestException(
+                    "Quantity must be greater than 0 for bookId: " + itemRequest.getBookId()
+                );
+            }
+
             BookResponseDTO book = restTemplate.getForObject(
                 productServiceBaseUrl + "/api/books/" + itemRequest.getBookId(),
                 BookResponseDTO.class
