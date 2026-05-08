@@ -1,4 +1,4 @@
-package fit.iuh.promotion.config;
+package fit.iuh.promotion.module.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

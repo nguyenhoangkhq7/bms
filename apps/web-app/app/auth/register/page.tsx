@@ -180,9 +180,18 @@ export default function RegisterPage() {
                 value={formData.dateOfBirth || ""}
                 onChange={(e) => updateField("dateOfBirth", e.target.value)}
                 disabled={isLoading}
-                max={new Date().toISOString().split("T")[0]}
-                className="w-full px-4 py-3 rounded-lg border-2 border-[#D4C4B0] bg-white focus:border-[#1F4788] focus:bg-white focus:outline-none disabled:opacity-50"
+                max={new Date(Date.now() - 86400000).toISOString().split("T")[0]}
+                className={`w-full px-4 py-3 rounded-lg border-2 transition-colors ${
+                  errors.dateOfBirth
+                    ? "border-red-400 bg-red-50"
+                    : "border-[#D4C4B0] bg-white focus:border-[#1F4788] focus:bg-white"
+                } focus:outline-none disabled:opacity-50`}
               />
+              {errors.dateOfBirth && (
+                <p className="mt-2 text-sm text-red-600 font-medium">
+                  {errors.dateOfBirth}
+                </p>
+              )}
             </div>
 
             {/* Address Section */}

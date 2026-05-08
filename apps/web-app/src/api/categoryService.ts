@@ -4,7 +4,7 @@ import type { Category } from '@/src/types';
 
 // Giả định backend có endpoint: GET /api/categories
 // Đổi lại URL thực tế nếu endpoint của bạn khác.
-const CATEGORY_API_URL = 'http://localhost/api/v1/products/categories';
+const CATEGORY_API_URL = '/api/v1/products/categories';
 
 export const categoryService = {
     getAllCategories: async (): Promise<Category[]> => {

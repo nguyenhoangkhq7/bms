@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Plus, Sparkles, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
@@ -36,6 +37,8 @@ function normalizeAdministrativeName(value: string) {
 }
 
 export default function CheckoutPage() {
+  const router = useRouter()
+  const redirectDelayMs = 1200
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null)
@@ -332,6 +335,7 @@ export default function CheckoutPage() {
       const data = await submitCheckout(payload)
       toast.success(`Dat hang thanh cong #${data.id}`)
       setPreview(data)
+      window.setTimeout(() => router.replace('/'), redirectDelayMs)
     } catch (e: any) {
       toast.error(e?.message ?? 'Thanh toan that bai')
     } finally {

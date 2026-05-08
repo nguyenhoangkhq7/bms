@@ -60,3 +60,14 @@ logs/
 # Test coverage
 coverage/
 .nyc_output/
+
+
+# Docker & Database data
+db/postgres-data/
+.docker/
+*.tar
+*.jar
+
+# Local config
+services/**/application-local.yaml
+services/**/application-local.properties
