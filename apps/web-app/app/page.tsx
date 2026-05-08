@@ -23,6 +23,8 @@ import { bookService } from '@/src/api/bookService';
 import { categoryService } from '@/src/api/categoryService';
 import { useAddToCart } from '@/src/modules/cart/hooks/useAddToCart';
 import { getEffectiveUserId } from '@/src/modules/cart/utils/userContext';
+import { useAuth } from '@/src/auth/context';
+import { useRouter } from 'next/navigation';
 import type { Book, Category } from '@/src/types';
 
 // Interface cho danh mục dạng cây (có danh mục con)
@@ -69,6 +71,8 @@ function HomeContent() {
   const [maxPrice, setMaxPrice] = useState('');
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
   const { addToCart, loading: addToCartLoading } = useAddToCart();
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
 
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -94,6 +98,14 @@ function HomeContent() {
     setMinPrice('');
     setMaxPrice('');
   };
+
+  useEffect(() => {
+    const handleClearFilters = () => {
+      clearFilters();
+    };
+    window.addEventListener('clearFilters', handleClearFilters);
+    return () => window.removeEventListener('clearFilters', handleClearFilters);
+  }, []);
 
   // Icon mapping cho các danh mục cha
   const getCategoryIcon = (categoryId: number) => {
@@ -183,7 +195,17 @@ function HomeContent() {
   const filteredBooks = books.filter(book => {
     // Lọc theo danh mục
     const catId = book.category?.id || book.categoryId;
-    const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(catId);
+    
+    // Nếu chọn danh mục cha, bao gồm cả danh mục con của nó
+    const allowedCategoryIds = new Set(selectedCategories);
+    selectedCategories.forEach(id => {
+       const cat = categories.find(c => c.id === id);
+       if (cat && cat.subCategories) {
+          cat.subCategories.forEach(sub => allowedCategoryIds.add(sub.id));
+       }
+    });
+
+    const matchCategory = selectedCategories.length === 0 || allowedCategoryIds.has(catId) || allowedCategoryIds.has(book.parentCategoryId as number || book.category?.parentId as number);
 
     // Lọc theo từ khóa tìm kiếm
     const title = (book.title || '').toLowerCase();
@@ -207,11 +229,14 @@ function HomeContent() {
   const hasActiveFilters = selectedCategories.length > 0 || Boolean(minPrice) || Boolean(maxPrice);
 
   const handleAddToCart = async (bookId: number) => {
-    const userId = getEffectiveUserId();
-    if (!userId) {
+    if (!isSignedIn) {
       toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng');
+      router.push('/auth/login');
       return;
     }
+
+    const userId = getEffectiveUserId();
+    if (!userId) return;
 
     try {
       setPendingBookId(bookId);
@@ -240,7 +265,7 @@ function HomeContent() {
             )}
           </div>
           
-          <div className="mb-7">
+          <div className="mb-7 max-h-[50vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
             <div className="flex flex-col gap-2">
               {categories.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">Đang tải danh mục...</p>
@@ -251,26 +276,34 @@ function HomeContent() {
 
                   return (
                     <div key={currentId} className="mb-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2 last:mb-0">
-                      <button
-                        onClick={() => toggleCategoryExpand(currentId)}
-                        className="group flex w-full items-center justify-between py-1 text-left"
-                      >
-                        <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors group-hover:text-slate-950">
-                          <span className="text-slate-400 transition-colors group-hover:text-slate-700">
-                            {getCategoryIcon(currentId)}
+                      <div className="group flex w-full items-center justify-between py-1 text-left">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-700" 
+                            checked={selectedCategories.includes(currentId)}
+                            onChange={() => toggleCategoryFilter(currentId)}
+                          />
+                          <span className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition-colors group-hover:text-slate-950">
+                            <span className="text-slate-400 transition-colors group-hover:text-slate-700">
+                              {getCategoryIcon(currentId)}
+                            </span>
+                            {parentCat.name}
                           </span>
-                          {parentCat.name}
-                        </span>
+                        </label>
                         {parentCat.subCategories && parentCat.subCategories.length > 0 && (
-                          <span className="text-slate-400 transition-colors group-hover:text-slate-700">
+                          <button
+                            onClick={() => toggleCategoryExpand(currentId)}
+                            className="p-1 text-slate-400 transition-colors hover:bg-slate-200 rounded group-hover:text-slate-700"
+                          >
                             {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                          </span>
+                          </button>
                         )}
-                      </button>
+                      </div>
 
                       <div
                         className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                          isExpanded ? 'mt-3 max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                          isExpanded ? 'mt-3 max-h-[1500px] opacity-100' : 'max-h-0 opacity-0'
                         }`}
                       >
                         {parentCat.subCategories && parentCat.subCategories.length > 0 && (
@@ -280,6 +313,7 @@ function HomeContent() {
                               return (
                                 <label key={childId} className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-slate-100">
                                   <input
+                                    type="checkbox"
                                     className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-700"
                                     checked={selectedCategories.includes(childId)}
                                     onChange={() => toggleCategoryFilter(childId)}
@@ -369,62 +403,80 @@ function HomeContent() {
                   key={book.id}
                   className="group flex flex-col rounded-2xl border border-slate-100 bg-white/60 backdrop-blur transition hover:border-slate-200 hover:shadow-lg"
                 >
-                  {/* Book Image */}
-                  <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50">
-                    {book.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={book.imageUrl}
-                        alt={book.title}
-                        className="h-48 w-full object-cover transition group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="flex h-48 items-center justify-center">
-                        <BookOpen size={48} className="text-slate-300" />
-                      </div>
-                    )}
-                  </div>
+                  <Link href={`/detail/${book.id}`} className="flex flex-1 flex-col">
+                    {(() => {
+                      const totalReviews = book.reviews ? book.reviews.length : 0;
+                      const avgRating = totalReviews > 0 
+                        ? Math.round(book.reviews!.reduce((sum, r) => sum + r.rating, 0) / totalReviews)
+                        : 0;
 
-                  {/* Book Info */}
-                  <div className="flex flex-1 flex-col p-4">
-                    <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-slate-900">
-                      {book.title}
-                    </h3>
-                    <p className="mb-3 text-xs text-slate-500">{book.author || 'Không rõ tác giả'}</p>
+                      return (
+                        <>
+                          {/* Book Image */}
+                          <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50">
+                            {book.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={book.imageUrl}
+                                alt={book.title}
+                                className="h-48 w-full object-cover transition group-hover:scale-110"
+                              />
+                            ) : (
+                              <div className="flex h-48 items-center justify-center">
+                                <BookOpen size={48} className="text-slate-300" />
+                              </div>
+                            )}
+                          </div>
 
-                    {/* Rating */}
-                    <div className="mb-3 flex items-center gap-1">
-                      <div className="flex gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={14}
-                            className={i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-slate-500">(42)</span>
-                    </div>
+                          {/* Book Info */}
+                          <div className="flex flex-1 flex-col p-4 pb-2">
+                            <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700">
+                              {book.title}
+                            </h3>
+                            <p className="mb-3 text-xs text-slate-500">{book.author || 'Không rõ tác giả'}</p>
 
-                    <p className="mb-4 line-clamp-2 text-xs text-slate-600">
-                      {book.description || 'Không có mô tả'}
-                    </p>
+                            {/* Rating */}
+                            <div className="mb-3 flex items-center gap-1">
+                              <div className="flex gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    size={14}
+                                    className={i < avgRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-xs text-slate-500">({totalReviews})</span>
+                            </div>
 
-                    {/* Price and Stock */}
-                    <div className="mb-4 flex items-baseline justify-between">
-                      <span className="text-lg font-bold text-slate-900">
-                        ₫{book.price?.toLocaleString()}
-                      </span>
-                      <span className={`text-xs font-semibold ${(book.stockQuantity ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {(book.stockQuantity ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'}
-                      </span>
-                    </div>
+                            <p className="mb-4 line-clamp-2 text-xs text-slate-600">
+                              {book.description || 'Không có mô tả'}
+                            </p>
 
-                    {/* Add to Cart Button */}
+                            {/* Price and Stock */}
+                            <div className="mt-auto flex items-baseline justify-between">
+                              <span className="text-lg font-bold text-slate-900">
+                                ₫{book.price?.toLocaleString()}
+                              </span>
+                              <span className={`text-xs font-semibold ${(book.stockQuantity ?? 0) > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {(book.stockQuantity ?? 0) > 0 ? 'Còn hàng' : 'Hết hàng'}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </Link>
+
+                  {/* Add to Cart Button */}
+                  <div className="p-4 pt-2">
                     <button
-                      onClick={() => handleAddToCart(book.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleAddToCart(book.id);
+                      }}
                       disabled={(addToCartLoading && pendingBookId === book.id) || (book.stockQuantity ?? 0) === 0}
-                      className="flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {addToCartLoading && pendingBookId === book.id ? (
                         <>
@@ -438,14 +490,6 @@ function HomeContent() {
                         </>
                       )}
                     </button>
-
-                    {/* View Details Link */}
-                    <Link
-                      href={`/detail/${book.id}`}
-                      className="mt-2 text-center text-xs font-semibold text-slate-600 transition hover:text-slate-900"
-                    >
-                      Xem chi tiết
-                    </Link>
                   </div>
                 </div>
               ))}

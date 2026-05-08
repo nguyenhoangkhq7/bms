@@ -31,6 +31,17 @@ public class ReviewController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newReview);
     }
 
+    // API: Cập nhật 1 review (PUT /api/books/reviews/{reviewId}?userId=...&userName=...)
+    @PutMapping("/reviews/{reviewId}")
+    public ResponseEntity<Review> updateReview(
+            @PathVariable Long reviewId,
+            @RequestBody Review review,
+            @RequestParam Long userId,
+            @RequestParam(required = false) String userName) {
+        Review updated = reviewService.updateReview(reviewId, review, userId, userName);
+        return ResponseEntity.ok(updated);
+    }
+
     // API: Xoá 1 review (DELETE /api/books/reviews/{reviewId})
     @DeleteMapping("/reviews/{reviewId}")
     public ResponseEntity<Void> deleteReview(@PathVariable Long reviewId) {

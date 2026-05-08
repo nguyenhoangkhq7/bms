@@ -31,9 +31,7 @@ public class BookImageController {
         @PathVariable Long bookId,
         @RequestBody Map<String, String> requestBody) {
 
-        // Trích xuất link ảnh từ JSON body
         String imageUrl = requestBody.get("imageUrl");
-
         BookImage newImage = bookImageService.addImageToBook(bookId, imageUrl);
         return ResponseEntity.status(HttpStatus.CREATED).body(newImage);
     }
