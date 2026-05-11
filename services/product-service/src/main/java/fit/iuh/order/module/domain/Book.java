@@ -37,6 +37,10 @@ public class Book {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Transient
+    @Column(name = "embedding", columnDefinition = "vector(768)")
+    private float[] embedding;
+
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
@@ -52,4 +56,12 @@ public class Book {
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookImage> secondaryImages = new ArrayList<>();
+
+    public String buildTextForEmbedding() {
+        String categoryName = category != null ? category.getName() : "";
+        return "Tiêu đề: " + title
+            + ". Tác giả: " + author
+            + ". Thể loại: " + categoryName
+            + ". Tóm tắt: " + description;
+    }
 }

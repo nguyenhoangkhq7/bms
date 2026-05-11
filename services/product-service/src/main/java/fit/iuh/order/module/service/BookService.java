@@ -6,8 +6,11 @@ import fit.iuh.order.module.domain.BookImage;
 import fit.iuh.order.module.domain.Category;
 import fit.iuh.order.module.repository.BookRepository;
 import fit.iuh.order.module.repository.CategoryRepository;
+import fit.iuh.order.module.semanticsearch.BookSemanticRepository;
+import fit.iuh.order.module.semanticsearch.SemanticEmbeddingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +24,12 @@ public class BookService {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    @Autowired
+    private SemanticEmbeddingService semanticEmbeddingService;
+
+    @Autowired
+    private BookSemanticRepository bookSemanticRepository;
+
     // Lấy tất cả sách
     public List<Book> getAllBooks() {
         return bookRepository.findAll();
@@ -33,6 +42,7 @@ public class BookService {
     }
 
     // Thêm sách mới
+    @Transactional
     public Book createBook(BookRequestDTO requestDTO) {
         Book book = new Book();
 
@@ -63,10 +73,17 @@ public class BookService {
             book.setSecondaryImages(images);
         }
 
-        return bookRepository.save(book);
+        Book savedBook = bookRepository.save(book);
+        float[] embedding = semanticEmbeddingService.generateEmbedding(savedBook.buildTextForEmbedding());
+        String embeddingLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
+        bookSemanticRepository.updateEmbedding(savedBook.getId(), embeddingLiteral);
+        savedBook.setEmbedding(embedding);
+
+        return savedBook;
     }
 
     // Cập nhật sách
+    @Transactional
     public Book updateBook(Long id, BookRequestDTO requestDTO) {
         Book existingBook = bookRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy sách với ID: " + id));
@@ -97,7 +114,13 @@ public class BookService {
             }
         }
 
-        return bookRepository.save(existingBook);
+        Book savedBook = bookRepository.save(existingBook);
+        float[] embedding = semanticEmbeddingService.generateEmbedding(savedBook.buildTextForEmbedding());
+        String embeddingLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
+        bookSemanticRepository.updateEmbedding(savedBook.getId(), embeddingLiteral);
+        savedBook.setEmbedding(embedding);
+
+        return savedBook;
     }
 
     // Xoá sách

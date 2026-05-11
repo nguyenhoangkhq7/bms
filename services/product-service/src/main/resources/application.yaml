@@ -19,6 +19,11 @@ spring:
       hibernate:
         format_sql: true
 
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://ai-engine:11434}
+  embedding:
+    model: ${OLLAMA_EMBEDDING_MODEL:granite-embedding-311m-multilingual-r2}
+
 server:
   port: 8082
   error:
