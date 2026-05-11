@@ -14,7 +14,6 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getCart } from '@/src/cart/services/cartService';
-import type { CartItem } from '@/src/cart/types';
 import { useAuth } from '@/src/auth/context';
 
 export default function Header() {
@@ -32,10 +31,7 @@ export default function Header() {
     const syncCartCount = async () => {
       try {
         const cart = await getCart();
-        const total = (cart?.items ?? []).reduce(
-          (sum: number, item: CartItem) => sum + (item.quantity ?? 0),
-          0,
-        );
+        const total = (cart?.items ?? []).length;
         if (mounted) {
           setCartCount(total);
         }

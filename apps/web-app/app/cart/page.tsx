@@ -205,7 +205,7 @@ export default function CartPage() {
                 <span className="text-lg font-semibold text-slate-900">Sản phẩm</span>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                {(cart?.items ?? []).reduce((sum, item) => sum + item.quantity, 0)} món
+                {(cart?.items ?? []).length} orderItem
               </span>
             </div>
 
