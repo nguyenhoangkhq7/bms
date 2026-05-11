@@ -38,11 +38,29 @@ export const bookService = {
         return await handleResponse<null>(response);
     },
 
-    hybridSearchBooks: async (query: string, limit = 10, offset = 0): Promise<Book[]> => {
+    hybridSearchBooks: async (
+        query: string,
+        limit = 10,
+        offset = 0,
+        options?: {
+            categoryIdsCsv?: string;
+            minPrice?: string;
+            maxPrice?: string;
+        }
+    ): Promise<Book[]> => {
         const url = new URL(HYBRID_SEARCH_URL);
         url.searchParams.set('query', query);
         url.searchParams.set('limit', String(limit));
         url.searchParams.set('offset', String(offset));
+        if (options?.categoryIdsCsv) {
+            url.searchParams.set('categoryIdsCsv', options.categoryIdsCsv);
+        }
+        if (options?.minPrice) {
+            url.searchParams.set('minPrice', options.minPrice);
+        }
+        if (options?.maxPrice) {
+            url.searchParams.set('maxPrice', options.maxPrice);
+        }
 
         const response = await fetch(url.toString());
         return (await handleResponse<Book[]>(response)) ?? [];

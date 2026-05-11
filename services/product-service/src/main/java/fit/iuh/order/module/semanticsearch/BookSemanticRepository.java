@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -63,10 +64,16 @@ public interface BookSemanticRepository extends JpaRepository<fit.iuh.order.modu
         + "FROM books b "
         + "LEFT JOIN categories c ON c.id = b.category_id "
         + "WHERE b.status IN ('ACTIVE', 'AVAILABLE') AND b.embedding IS NOT NULL AND b.fts_tokens IS NOT NULL "
+        + "AND (:minPrice IS NULL OR b.price >= :minPrice) "
+        + "AND (:maxPrice IS NULL OR b.price <= :maxPrice) "
+        + "AND (coalesce(:categoryIdsCsv, '') = '' OR b.category_id = ANY(string_to_array(:categoryIdsCsv, ',')::bigint[])) "
         + "ORDER BY combinedScore DESC "
         + "LIMIT :limit OFFSET :offset", nativeQuery = true)
     List<SemanticBookSearchProjection> hybridSearch(@Param("vector") String vector,
                                                     @Param("query") String query,
                                                     @Param("limit") int limit,
-                                                    @Param("offset") int offset);
+                                                    @Param("offset") int offset,
+                                                    @Param("categoryIdsCsv") String categoryIdsCsv,
+                                                    @Param("minPrice") BigDecimal minPrice,
+                                                    @Param("maxPrice") BigDecimal maxPrice);
 }
