@@ -1,5 +1,5 @@
 // src/api/bookService.ts
-import { BASE_URL, handleResponse } from './apiConfig';
+import { BASE_URL, HYBRID_SEARCH_URL, handleResponse } from './apiConfig';
 import type { Book, BookCreateRequest, BookUpdateRequest } from '@/src/types';
 
 export const bookService = {
@@ -36,5 +36,14 @@ export const bookService = {
             method: 'DELETE',
         });
         return await handleResponse<null>(response);
+    },
+
+    hybridSearchBooks: async (query: string, limit = 10): Promise<Book[]> => {
+        const url = new URL(HYBRID_SEARCH_URL);
+        url.searchParams.set('query', query);
+        url.searchParams.set('limit', String(limit));
+
+        const response = await fetch(url.toString());
+        return (await handleResponse<Book[]>(response)) ?? [];
     }
 };

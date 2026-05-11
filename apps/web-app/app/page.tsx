@@ -55,7 +55,7 @@ export default function Home() {
 
 function HomeContent() {
   const searchParams = useSearchParams();
-  const searchQuery = (searchParams.get('search') || '').toLowerCase();
+  const searchQuery = (searchParams.get('search') || '').trim();
   const refreshToken = searchParams.get('updated');
 
   // State quản lý dữ liệu sách
@@ -130,7 +130,9 @@ function HomeContent() {
       try {
         console.log('[HOME] useEffect triggered with refreshToken:', refreshToken);
         setLoading(true);
-        const data = await fetchWithRetry(() => bookService.getAllBooks());
+        const data = searchQuery
+          ? await fetchWithRetry(() => bookService.hybridSearchBooks(searchQuery, 20))
+          : await fetchWithRetry(() => bookService.getAllBooks());
         console.log('[HOME] Books fetched from API:', data?.length || 0, 'books', data);
         setBooks(data);
       } catch (err) {
@@ -173,7 +175,7 @@ function HomeContent() {
 
     fetchBooks();
     fetchCategories(); 
-  }, [refreshToken]);
+  }, [refreshToken, searchQuery]);
 
   // Hàm xử lý đóng/mở danh mục
   const toggleCategoryExpand = (categoryId: number) => {
@@ -209,15 +211,9 @@ function HomeContent() {
 
     const matchCategory = selectedCategories.length === 0 || allowedCategoryIds.has(catId) || allowedCategoryIds.has(book.parentCategoryId as number || book.category?.parentId as number);
 
-    // Lọc theo từ khóa tìm kiếm
-    const title = (book.title || '').toLowerCase();
-    const author = (book.author || '').toLowerCase();
-    const publisher = (book.publisher || '').toLowerCase();
-
-    const matchSearch = !searchQuery || 
-                        title.includes(searchQuery) || 
-                        author.includes(searchQuery) || 
-                        publisher.includes(searchQuery);
+    // Khi đã có searchQuery, dữ liệu đã được backend hybrid-search lọc sẵn.
+    // Không lọc lại theo title/author/publisher để tránh làm mất các kết quả semantic.
+    const matchSearch = true;
 
     // Lọc theo khoảng giá
     const price = Number(book.price) || 0;

@@ -36,6 +36,7 @@ public class HybridSearchService {
             book.getPrice(),
             book.getStockQuantity(),
             book.getStatus(),
+            book.getCategoryId(),
             book.getImageUrl(),
             book.getDescription(),
             book.getCategoryName(),

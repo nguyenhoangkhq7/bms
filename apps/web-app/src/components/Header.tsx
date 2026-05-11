@@ -22,6 +22,7 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isSignedIn, logout, isLoading } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     let mounted = true;
@@ -90,24 +91,26 @@ export default function Header() {
             <span className="font-serif">BookHaven</span>
           </Link>
 
-          <form
-            onSubmit={handleSearch}
-            className="relative hidden max-w-2xl flex-1 lg:block"
-          >
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
-              className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-            />
-            <button
-              type="submit"
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+          {!isAdmin && (
+            <form
+              onSubmit={handleSearch}
+              className="relative hidden max-w-2xl flex-1 lg:block"
             >
-              <Search size={20} />
-            </button>
-          </form>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm kiếm hybrid: tiêu đề, tác giả, nội dung..."
+                className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+              />
+              <button
+                type="submit"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+              >
+                <Search size={20} />
+              </button>
+            </form>
+          )}
 
           <nav className="flex items-center gap-3 text-gray-700 sm:gap-5">
             <div className="hidden items-center gap-6 text-sm font-medium xl:flex">
@@ -200,21 +203,23 @@ export default function Header() {
           </nav>
         </div>
 
-        <form onSubmit={handleSearch} className="relative w-full lg:hidden">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
-            className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-          />
-          <button
-            type="submit"
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
-          >
-            <Search size={20} />
-          </button>
-        </form>
+        {!isAdmin && (
+          <form onSubmit={handleSearch} className="relative w-full lg:hidden">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm kiếm hybrid: tiêu đề, tác giả, nội dung..."
+              className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+            />
+            <button
+              type="submit"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+            >
+              <Search size={20} />
+            </button>
+          </form>
+        )}
       </div>
     </header>
   );

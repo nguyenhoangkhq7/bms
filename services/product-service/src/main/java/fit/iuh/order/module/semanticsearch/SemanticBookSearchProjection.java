@@ -19,6 +19,8 @@ public interface SemanticBookSearchProjection {
 
     BookStatus getStatus();
 
+    Long getCategoryId();
+
     String getImageUrl();
 
     String getDescription();

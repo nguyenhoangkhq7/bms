@@ -12,6 +12,7 @@ public record SemanticBookSearchDTO(
     BigDecimal price,
     Integer stockQuantity,
     BookStatus status,
+    Long categoryId,
     String imageUrl,
     String description,
     String categoryName,
