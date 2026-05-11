@@ -41,9 +41,9 @@ export default function LoginPage() {
         password,
       };
 
-      await login(credentials);
-      router.push("/");
-    } catch (err: any) {
+      const userProfile = await login(credentials);
+      router.replace(userProfile.role === "ADMIN" ? "/admin" : "/");
+    } catch {
       // Error is handled by context
     }
   };
@@ -187,7 +187,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-[#666]">
-              Don't have an account?{" "}
+              Do not have an account?{" "}
               <Link
                 href="/auth/register"
                 className="font-bold text-[#1F4788] hover:text-[#2C5AA0]"

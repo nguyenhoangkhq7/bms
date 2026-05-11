@@ -73,7 +73,7 @@ function HomeContent() {
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
 
   const { addToCart, loading: addToCartLoading } = useAddToCart();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const router = useRouter();
 
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -121,6 +121,12 @@ function HomeContent() {
     window.addEventListener('clearFilters', handleClearFilters);
     return () => window.removeEventListener('clearFilters', handleClearFilters);
   }, []);
+
+  useEffect(() => {
+    if (isSignedIn && user?.role === 'ADMIN') {
+      router.replace('/admin');
+    }
+  }, [isSignedIn, user, router]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -195,6 +201,17 @@ function HomeContent() {
 
     fetchSearchBooks();
   }, [searchQuery, selectedCategories, minPrice, maxPrice, categories]);
+
+  if (isSignedIn && user?.role === 'ADMIN') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F0E8]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-[#1F4788]" />
+          <p className="text-sm font-medium text-[#666]">Đang chuyển đến trang quản lý...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleLoadMoreSearchResults = async () => {
     if (!searchQuery || loadingMoreSearchResults || !hasMoreSearchResults) return;

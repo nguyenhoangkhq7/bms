@@ -142,7 +142,7 @@ export default function CartPage() {
   const shipping = subtotal > 0 ? 5 : 0
   const total = subtotal + tax + shipping
 
-  const formatCurrency = (value: number) => `$${value.toFixed(2)}`
+  const formatCurrency = (value: number) => `${value.toLocaleString('en-US')}đ`
 
   return (
     <div className="min-h-[calc(100vh-84px)] bg-gradient-to-b from-[#f8fafc] via-[#f6f8fc] to-[#eef2f7] px-4 py-6 sm:px-6 lg:px-8">
