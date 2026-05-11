@@ -1,9 +1,11 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Plus, Sparkles, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useAuth } from '@/src/auth/context'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
 import { previewCheckout, submitCheckout } from '@/src/checkout/services/checkoutService'
 import type { CheckoutPreviewResponse, CheckoutRequest, ShippingAddress, ShippingAddressRequest } from '@/src/checkout/types'
@@ -35,7 +37,22 @@ function normalizeAdministrativeName(value: string) {
     .trim()
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+
+  return fallback
+}
+
 export default function CheckoutPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { isSignedIn, isLoading: authLoading } = useAuth()
+  const canLoadCheckoutData = !authLoading && isSignedIn
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null)
@@ -92,17 +109,25 @@ export default function CheckoutPage() {
   }
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     ;(async () => {
       try {
         const result = await getProvinces()
         setProvinces(result)
-      } catch (e: any) {
-        toast.error(e?.message ?? 'Khong tai duoc tinh/thanh')
+      } catch (error: unknown) {
+        toast.error(getErrorMessage(error, 'Khong tai duoc tinh/thanh'))
       }
     })()
-  }, [])
+  }, [canLoadCheckoutData])
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     const provinceCode = Number(addressForm.provinceCode)
     if (!Number.isFinite(provinceCode) || provinceCode <= 0) {
       setDistricts([])
@@ -117,7 +142,7 @@ export default function CheckoutPage() {
         setDistricts([])
       }
     })()
-  }, [addressForm.provinceCode])
+  }, [addressForm.provinceCode, canLoadCheckoutData])
 
   async function loadAddresses() {
     const userId = getEffectiveUserId()
@@ -129,18 +154,26 @@ export default function CheckoutPage() {
       setAddresses(list)
       const defaultAddress = list.find((item) => item.isDefault)
       setSelectedAddressId((prev) => prev ?? defaultAddress?.id ?? list[0]?.id ?? null)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong tai duoc danh sach dia chi')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong tai duoc danh sach dia chi'))
     } finally {
       setAddressLoading(false)
     }
   }
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     loadAddresses()
-  }, [])
+  }, [canLoadCheckoutData])
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     ;(async () => {
       try {
         const userId = getEffectiveUserId()
@@ -169,7 +202,13 @@ export default function CheckoutPage() {
         setSubtotalFallback(0)
       }
     })()
-  }, [])
+  }, [canLoadCheckoutData])
+
+  useEffect(() => {
+    if (!authLoading && !isSignedIn) {
+      router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`)
+    }
+  }, [authLoading, isSignedIn, pathname, router])
 
   function openCreateForm() {
     setEditingAddressId(null)
@@ -240,8 +279,8 @@ export default function CheckoutPage() {
       setShowAddressForm(false)
       await loadAddresses()
       setSelectedAddressId(saved.id)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong luu duoc dia chi')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong luu duoc dia chi'))
     } finally {
       setLoading(false)
     }
@@ -257,8 +296,8 @@ export default function CheckoutPage() {
       await loadAddresses()
       setSelectedAddressId(addressId)
       toast.success('Da dat dia chi mac dinh')
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong dat duoc mac dinh')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong dat duoc mac dinh'))
     } finally {
       setLoading(false)
     }
@@ -273,14 +312,14 @@ export default function CheckoutPage() {
       await deleteShippingAddress(addressId, userId)
       await loadAddresses()
       toast.success('Da xoa dia chi')
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong xoa duoc dia chi')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong xoa duoc dia chi'))
     } finally {
       setLoading(false)
     }
   }
 
-  function buildCheckoutPayload(): CheckoutRequest | null {
+  const buildCheckoutPayload = useCallback((): CheckoutRequest | null => {
     const userId = getEffectiveUserId()
     if (!userId) {
       toast.error('Khong tim thay userId')
@@ -297,7 +336,7 @@ export default function CheckoutPage() {
       shippingAddressId: selectedAddressId,
       voucherCode: voucherCode.trim() || undefined,
     }
-  }
+  }, [selectedAddressId, voucherCode])
 
   useEffect(() => {
     if (!selectedAddressId) {
@@ -321,7 +360,7 @@ export default function CheckoutPage() {
     }, 350)
 
     return () => window.clearTimeout(timer)
-  }, [selectedAddressId, voucherCode])
+  }, [selectedAddressId, voucherCode, canLoadCheckoutData, buildCheckoutPayload])
 
   async function handleCheckout() {
     const payload = buildCheckoutPayload()
@@ -332,11 +371,21 @@ export default function CheckoutPage() {
       const data = await submitCheckout(payload)
       toast.success(`Dat hang thanh cong #${data.id}`)
       setPreview(data)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Thanh toan that bai')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Thanh toan that bai'))
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading || !isSignedIn) {
+    return (
+      <div className="min-h-screen bg-[#F5F0E8] px-4 py-12">
+        <div className="mx-auto flex min-h-[60vh] w-full max-w-[1240px] items-center justify-center text-slate-500">
+          Đang chuyển đến trang đăng nhập...
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -345,7 +394,7 @@ export default function CheckoutPage() {
         <section className="rounded-3xl border border-[#e7dfd1] bg-white/85 p-6 shadow-[0_18px_40px_rgba(106,78,32,0.12)] backdrop-blur">
           <div className="mb-6 flex items-start justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-[#a28354]">Checkout</p>
+              <p className="text-sm uppercase tracking-[0.3em] text-[#a28354]">Thanh toán</p>
               <h1 className="mt-2 text-3xl font-semibold text-slate-900" style={{ fontFamily: '"Playfair Display", Georgia, serif' }}>
                 Chọn địa chỉ giao hàng
               </h1>
@@ -381,14 +430,14 @@ export default function CheckoutPage() {
                   <button key={item.id} type="button" onClick={() => setSelectedAddressId(item.id)} className={`rounded-2xl border p-4 text-left transition ${selected ? 'border-amber-400 bg-amber-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="truncate text-sm font-semibold text-slate-900">{item.recipientName}</div>
-                      {item.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700"><Star size={10} /> Mac dinh</span>}
+                      {item.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700"><Star size={10} /> Mặc định</span>}
                     </div>
                     <p className="mt-1 text-xs text-slate-500">{item.phoneNumber}</p>
                     <p className="mt-2 line-clamp-2 text-sm text-slate-700">{item.addressLine}</p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                      {!item.isDefault && <span onClick={(e) => { e.stopPropagation(); handleSetDefault(item.id) }} className="cursor-pointer rounded-full border border-emerald-300 px-2 py-1 text-emerald-700">Dat mac dinh</span>}
-                      <span onClick={(e) => { e.stopPropagation(); openEditForm(item) }} className="cursor-pointer rounded-full border border-slate-300 px-2 py-1 text-slate-700">Sua</span>
-                      <span onClick={(e) => { e.stopPropagation(); handleDeleteAddress(item.id) }} className="cursor-pointer rounded-full border border-rose-300 px-2 py-1 text-rose-700">Xoa</span>
+                      {!item.isDefault && <span onClick={(e) => { e.stopPropagation(); handleSetDefault(item.id) }} className="cursor-pointer rounded-full border border-emerald-300 px-2 py-1 text-emerald-700">Đặt làm mặc định</span>}
+                      <span onClick={(e) => { e.stopPropagation(); openEditForm(item) }} className="cursor-pointer rounded-full border border-slate-300 px-2 py-1 text-slate-700">Sửa</span>
+                      <span onClick={(e) => { e.stopPropagation(); handleDeleteAddress(item.id) }} className="cursor-pointer rounded-full border border-rose-300 px-2 py-1 text-rose-700">Xóa</span>
                     </div>
                   </button>
                 )
@@ -441,7 +490,7 @@ export default function CheckoutPage() {
           <div className="mt-6 rounded-2xl border border-dashed border-amber-200 bg-amber-50/70 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-amber-700"><Sparkles size={16} />Voucher</div>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-              <input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Nhap ma giam gia" className="w-full flex-1 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none" />
+              <input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Nhập mã giảm giá" className="w-full flex-1 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm focus:border-amber-400 focus:outline-none" />
             </div>
             {/* <p className="mt-2 text-xs text-amber-700">Phi ship va tong tien tu dong cap nhat khi ban doi dia chi hoac voucher.</p> */}
           </div>
@@ -460,7 +509,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mt-6 space-y-3">
-              <button type="button" onClick={handleCheckout} disabled={loading || !selectedAddress} className="w-full rounded-full bg-slate-900 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70">{loading ? 'Dang xu ly...' : 'Tien hanh thanh toan'}</button>
+              <button type="button" onClick={handleCheckout} disabled={loading || !selectedAddress} className="w-full rounded-full bg-slate-900 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70">{loading ? 'Đang xử lý...' : 'Tiến hành thanh toán'}</button>
             </div>
           </div>
 

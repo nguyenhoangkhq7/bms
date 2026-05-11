@@ -1,24 +1,40 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ShoppingBag, Trash2 } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
 import { getCart, removeItem, updateQuantity } from '@/src/cart/services/cartService'
 import { bookService } from '@/src/api/bookService'
 import { toast } from 'react-hot-toast'
 import type { CartResponse } from '@/src/cart/types'
 import type { Book } from '@/src/types'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
+import { useAuth } from '@/src/auth/context'
 
 type BookMap = Record<number, Book | null>
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+
+  return fallback
+}
 
 export default function CartPage() {
   const [loading, setLoading] = useState(true)
   const [cart, setCart] = useState<CartResponse | null>(null)
   const [pendingBookId, setPendingBookId] = useState<number | null>(null)
   const [booksById, setBooksById] = useState<BookMap>({})
+  const router = useRouter()
+  const pathname = usePathname()
+  const { isSignedIn, isLoading: authLoading } = useAuth()
 
-  async function hydrateBookDetails(nextCart: CartResponse | null) {
+  const hydrateBookDetails = useCallback(async (nextCart: CartResponse | null) => {
     const ids = Array.from(new Set((nextCart?.items ?? []).map((item) => item.bookId)))
     const missingIds = ids.filter((id) => booksById[id] === undefined)
 
@@ -44,9 +60,9 @@ export default function CartPage() {
       }
       return merged
     })
-  }
+  }, [booksById])
 
-  async function fetchCartData(showLoading = true) {
+  const fetchCartData = useCallback(async (showLoading = true) => {
     if (showLoading) {
       setLoading(true)
     }
@@ -55,18 +71,28 @@ export default function CartPage() {
       const data = await getCart(userId)
       setCart(data)
       await hydrateBookDetails(data)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Không thể tải giỏ hàng')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Không thể tải giỏ hàng'))
     } finally {
       if (showLoading) {
         setLoading(false)
       }
     }
-  }
+  }, [hydrateBookDetails])
 
   useEffect(() => {
+    if (authLoading || !isSignedIn) {
+      return
+    }
+
     fetchCartData()
-  }, [])
+  }, [authLoading, isSignedIn, fetchCartData])
+
+  useEffect(() => {
+    if (!authLoading && !isSignedIn) {
+      router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`)
+    }
+  }, [authLoading, isSignedIn, pathname, router])
 
   async function handleRemove(bookId: number, quantity: number) {
     const userId = getEffectiveUserId()
@@ -89,9 +115,9 @@ export default function CartPage() {
       await removeItem({ userId, bookId, quantity })
       toast.success('Đã xoá khỏi giỏ hàng')
       await fetchCartData(false)
-    } catch (e: any) {
+    } catch (error: unknown) {
       setCart(snapshot)
-      toast.error(e?.message ?? 'Xoá sản phẩm thất bại')
+      toast.error(getErrorMessage(error, 'Xoá sản phẩm thất bại'))
     } finally {
       setPendingBookId(null)
     }
@@ -123,9 +149,9 @@ export default function CartPage() {
       setPendingBookId(bookId)
       await updateQuantity({ userId, bookId, quantity: nextQuantity })
       await fetchCartData(false)
-    } catch (e: any) {
+    } catch (error: unknown) {
       setCart(snapshot)
-      toast.error(e?.message ?? 'Cập nhật số lượng thất bại')
+      toast.error(getErrorMessage(error, 'Cập nhật số lượng thất bại'))
     } finally {
       setPendingBookId(null)
     }
@@ -142,7 +168,17 @@ export default function CartPage() {
   const shipping = subtotal > 0 ? 5 : 0
   const total = subtotal + tax + shipping
 
-  const formatCurrency = (value: number) => `$${value.toFixed(2)}`
+  const formatCurrency = (value: number) => `${value.toLocaleString('en-US')}đ`
+
+  if (authLoading || !isSignedIn) {
+    return (
+      <div className="min-h-[calc(100vh-84px)] bg-gradient-to-b from-[#f8fafc] via-[#f6f8fc] to-[#eef2f7] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-center py-20 text-slate-500">
+          Đang chuyển đến trang đăng nhập...
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-[calc(100vh-84px)] bg-gradient-to-b from-[#f8fafc] via-[#f6f8fc] to-[#eef2f7] px-4 py-6 sm:px-6 lg:px-8">
@@ -169,7 +205,7 @@ export default function CartPage() {
                 <span className="text-lg font-semibold text-slate-900">Sản phẩm</span>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                {(cart?.items ?? []).reduce((sum, item) => sum + item.quantity, 0)} món
+                {(cart?.items ?? []).length} sản phẩm
               </span>
             </div>
 
@@ -251,14 +287,14 @@ export default function CartPage() {
                 <span>Tạm tính</span>
                 <span className="font-medium text-slate-900">{formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
+              {/* <div className="flex justify-between text-slate-600">
                 <span>Thuế</span>
                 <span className="font-medium text-slate-900">{formatCurrency(tax)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
+              </div> */}
+              {/* <div className="flex justify-between text-slate-600">
                 <span>Phí giao hàng</span>
                 <span className="font-medium text-slate-900">{formatCurrency(shipping)}</span>
-              </div>
+              </div> */}
             </div>
 
             <hr className="my-5 border-slate-200" />

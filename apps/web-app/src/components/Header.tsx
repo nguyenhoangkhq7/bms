@@ -9,11 +9,11 @@ import {
   Heart,
   LogOut,
   Shield,
+  LayoutDashboard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getCart } from '@/src/cart/services/cartService';
-import type { CartItem } from '@/src/cart/types';
 import { useAuth } from '@/src/auth/context';
 
 export default function Header() {
@@ -22,6 +22,8 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isSignedIn, logout, isLoading } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const isAdminRoute = pathname.startsWith('/admin');
 
   useEffect(() => {
     let mounted = true;
@@ -29,10 +31,7 @@ export default function Header() {
     const syncCartCount = async () => {
       try {
         const cart = await getCart();
-        const total = (cart?.items ?? []).reduce(
-          (sum: number, item: CartItem) => sum + (item.quantity ?? 0),
-          0,
-        );
+        const total = (cart?.items ?? []).length;
         if (mounted) {
           setCartCount(total);
         }
@@ -77,6 +76,70 @@ export default function Header() {
     router.push('/auth/login');
   };
 
+  const handleLogout = async () => {
+    if (isLoading) return;
+
+    await logout();
+    router.push('/auth/login');
+  };
+
+  if (pathname.startsWith('/auth')) {
+    return null;
+  }
+
+  if (isAdminRoute) {
+    return null;
+  }
+
+  if (isAdmin) {
+    return (
+      <header className="sticky top-0 z-50 border-b border-red-100 bg-white/95 backdrop-blur">
+        <div className="flex w-full items-center justify-between gap-4 px-8 py-4 lg:px-20">
+          <Link
+            href="/admin"
+            className="flex items-center gap-2 text-xl font-bold text-gray-900 sm:text-2xl"
+          >
+            <BookOpen size={30} strokeWidth={2.5} />
+            <span className="font-serif">BookHaven Admin</span>
+          </Link>
+
+          <nav className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/admin"
+              className="hidden items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:border-red-300 hover:bg-red-100 sm:flex"
+            >
+              <LayoutDashboard size={16} />
+              Bảng điều khiển
+            </Link>
+
+            <div className="flex items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 py-2">
+              <div className="hidden flex-col items-end sm:flex">
+                <span className="text-xs text-gray-500">Xin chào,</span>
+                <span className="text-sm font-bold text-gray-900">
+                  {user?.fullName || user?.username}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield size={18} className="text-red-600" />
+                <span className="text-sm font-semibold text-red-600">Admin</span>
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              disabled={isLoading}
+              title="Thoát"
+              className="flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LogOut size={18} />
+              <span className="hidden sm:block">Đăng xuất</span>
+            </button>
+          </nav>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-[#f6f5f3]/95 backdrop-blur">
       <div className="flex w-full flex-col items-center justify-between gap-4 px-8 py-4 lg:flex-row lg:gap-8 lg:px-20">
@@ -90,24 +153,26 @@ export default function Header() {
             <span className="font-serif">BookHaven</span>
           </Link>
 
-          <form
-            onSubmit={handleSearch}
-            className="relative hidden max-w-2xl flex-1 lg:block"
-          >
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
-              className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-            />
-            <button
-              type="submit"
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+          {!isAdmin && (
+            <form
+              onSubmit={handleSearch}
+              className="relative hidden max-w-2xl flex-1 lg:block"
             >
-              <Search size={20} />
-            </button>
-          </form>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm kiếm hybrid: tiêu đề, tác giả, nội dung..."
+                className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+              />
+              <button
+                type="submit"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+              >
+                <Search size={20} />
+              </button>
+            </form>
+          )}
 
           <nav className="flex items-center gap-3 text-gray-700 sm:gap-5">
             <div className="hidden items-center gap-6 text-sm font-medium xl:flex">
@@ -175,7 +240,7 @@ export default function Header() {
                       <User size={20} />
                     </Link>
                     <button
-                      onClick={logout}
+                      onClick={handleLogout}
                       disabled={isLoading}
                       title="Thoát"
                       className="p-2 rounded-full hover:bg-red-50 transition-colors text-gray-600 hover:text-red-600 disabled:opacity-60"
@@ -200,21 +265,23 @@ export default function Header() {
           </nav>
         </div>
 
-        <form onSubmit={handleSearch} className="relative w-full lg:hidden">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm sách, tác giả, nhà xuất bản..."
-            className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-          />
-          <button
-            type="submit"
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
-          >
-            <Search size={20} />
-          </button>
-        </form>
+        {!isAdmin && (
+          <form onSubmit={handleSearch} className="relative w-full lg:hidden">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm kiếm hybrid: tiêu đề, tác giả, nội dung..."
+              className="w-full rounded-full border border-gray-300 bg-white py-3 pl-5 pr-12 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+            />
+            <button
+              type="submit"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-black"
+            >
+              <Search size={20} />
+            </button>
+          </form>
+        )}
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 // src/api/apiConfig.ts
 
 export const BASE_URL = 'http://localhost/api/v1/products/api/books'; // Nhớ đổi port nếu backend chạy port khác
+export const HYBRID_SEARCH_URL = 'http://localhost/api/v1/products/api/v1/books/hybrid-search';
 
 // Hàm dùng chung để xử lý lỗi và convert data sang JSON
 export const handleResponse = async <T>(response: Response): Promise<T | null> => {
