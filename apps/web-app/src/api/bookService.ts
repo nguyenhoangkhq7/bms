@@ -38,10 +38,11 @@ export const bookService = {
         return await handleResponse<null>(response);
     },
 
-    hybridSearchBooks: async (query: string, limit = 10): Promise<Book[]> => {
+    hybridSearchBooks: async (query: string, limit = 10, offset = 0): Promise<Book[]> => {
         const url = new URL(HYBRID_SEARCH_URL);
         url.searchParams.set('query', query);
         url.searchParams.set('limit', String(limit));
+        url.searchParams.set('offset', String(offset));
 
         const response = await fetch(url.toString());
         return (await handleResponse<Book[]>(response)) ?? [];

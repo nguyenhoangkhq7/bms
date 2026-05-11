@@ -21,7 +21,8 @@ public class SemanticSearchController {
 
     @GetMapping({"/semantic-search", "/hybrid-search"})
     public List<SemanticBookSearchDTO> semanticSearch(@RequestParam("query") String query,
-                                                      @RequestParam(value = "limit", defaultValue = "10") int limit) {
-        return hybridSearchService.hybridSearch(query, limit);
+                                                      @RequestParam(value = "limit", defaultValue = "10") int limit,
+                                                      @RequestParam(value = "offset", defaultValue = "0") int offset) {
+        return hybridSearchService.hybridSearch(query, limit, offset);
     }
 }

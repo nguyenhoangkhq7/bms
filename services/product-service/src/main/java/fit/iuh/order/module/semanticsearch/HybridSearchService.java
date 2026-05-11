@@ -16,12 +16,13 @@ public class HybridSearchService {
         this.bookSemanticRepository = bookSemanticRepository;
     }
 
-    public List<SemanticBookSearchDTO> hybridSearch(String query, int limit) {
+    public List<SemanticBookSearchDTO> hybridSearch(String query, int limit, int offset) {
         int safeLimit = limit > 0 ? limit : 10;
+        int safeOffset = Math.max(offset, 0);
         float[] embedding = semanticEmbeddingService.generateEmbedding(query);
         String vectorLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
 
-        return bookSemanticRepository.hybridSearch(vectorLiteral, query, safeLimit)
+        return bookSemanticRepository.hybridSearch(vectorLiteral, query, safeLimit, safeOffset)
             .stream()
             .map(this::toDto)
             .toList();

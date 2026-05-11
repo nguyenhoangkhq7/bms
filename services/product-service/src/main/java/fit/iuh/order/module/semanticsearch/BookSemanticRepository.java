@@ -64,8 +64,9 @@ public interface BookSemanticRepository extends JpaRepository<fit.iuh.order.modu
         + "LEFT JOIN categories c ON c.id = b.category_id "
         + "WHERE b.status IN ('ACTIVE', 'AVAILABLE') AND b.embedding IS NOT NULL AND b.fts_tokens IS NOT NULL "
         + "ORDER BY combinedScore DESC "
-        + "LIMIT :limit", nativeQuery = true)
+        + "LIMIT :limit OFFSET :offset", nativeQuery = true)
     List<SemanticBookSearchProjection> hybridSearch(@Param("vector") String vector,
                                                     @Param("query") String query,
-                                                    @Param("limit") int limit);
+                                                    @Param("limit") int limit,
+                                                    @Param("offset") int offset);
 }
