@@ -1,9 +1,11 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Plus, Sparkles, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useAuth } from '@/src/auth/context'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
 import { previewCheckout, submitCheckout } from '@/src/checkout/services/checkoutService'
 import type { CheckoutPreviewResponse, CheckoutRequest, ShippingAddress, ShippingAddressRequest } from '@/src/checkout/types'
@@ -35,7 +37,22 @@ function normalizeAdministrativeName(value: string) {
     .trim()
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+
+  return fallback
+}
+
 export default function CheckoutPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const { isSignedIn, isLoading: authLoading } = useAuth()
+  const canLoadCheckoutData = !authLoading && isSignedIn
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null)
@@ -92,17 +109,25 @@ export default function CheckoutPage() {
   }
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     ;(async () => {
       try {
         const result = await getProvinces()
         setProvinces(result)
-      } catch (e: any) {
-        toast.error(e?.message ?? 'Khong tai duoc tinh/thanh')
+      } catch (error: unknown) {
+        toast.error(getErrorMessage(error, 'Khong tai duoc tinh/thanh'))
       }
     })()
-  }, [])
+  }, [canLoadCheckoutData])
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     const provinceCode = Number(addressForm.provinceCode)
     if (!Number.isFinite(provinceCode) || provinceCode <= 0) {
       setDistricts([])
@@ -117,7 +142,7 @@ export default function CheckoutPage() {
         setDistricts([])
       }
     })()
-  }, [addressForm.provinceCode])
+  }, [addressForm.provinceCode, canLoadCheckoutData])
 
   async function loadAddresses() {
     const userId = getEffectiveUserId()
@@ -129,18 +154,26 @@ export default function CheckoutPage() {
       setAddresses(list)
       const defaultAddress = list.find((item) => item.isDefault)
       setSelectedAddressId((prev) => prev ?? defaultAddress?.id ?? list[0]?.id ?? null)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong tai duoc danh sach dia chi')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong tai duoc danh sach dia chi'))
     } finally {
       setAddressLoading(false)
     }
   }
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     loadAddresses()
-  }, [])
+  }, [canLoadCheckoutData])
 
   useEffect(() => {
+    if (!canLoadCheckoutData) {
+      return
+    }
+
     ;(async () => {
       try {
         const userId = getEffectiveUserId()
@@ -169,7 +202,13 @@ export default function CheckoutPage() {
         setSubtotalFallback(0)
       }
     })()
-  }, [])
+  }, [canLoadCheckoutData])
+
+  useEffect(() => {
+    if (!authLoading && !isSignedIn) {
+      router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`)
+    }
+  }, [authLoading, isSignedIn, pathname, router])
 
   function openCreateForm() {
     setEditingAddressId(null)
@@ -240,8 +279,8 @@ export default function CheckoutPage() {
       setShowAddressForm(false)
       await loadAddresses()
       setSelectedAddressId(saved.id)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong luu duoc dia chi')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong luu duoc dia chi'))
     } finally {
       setLoading(false)
     }
@@ -257,8 +296,8 @@ export default function CheckoutPage() {
       await loadAddresses()
       setSelectedAddressId(addressId)
       toast.success('Da dat dia chi mac dinh')
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong dat duoc mac dinh')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong dat duoc mac dinh'))
     } finally {
       setLoading(false)
     }
@@ -273,14 +312,14 @@ export default function CheckoutPage() {
       await deleteShippingAddress(addressId, userId)
       await loadAddresses()
       toast.success('Da xoa dia chi')
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Khong xoa duoc dia chi')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Khong xoa duoc dia chi'))
     } finally {
       setLoading(false)
     }
   }
 
-  function buildCheckoutPayload(): CheckoutRequest | null {
+  const buildCheckoutPayload = useCallback((): CheckoutRequest | null => {
     const userId = getEffectiveUserId()
     if (!userId) {
       toast.error('Khong tim thay userId')
@@ -297,7 +336,7 @@ export default function CheckoutPage() {
       shippingAddressId: selectedAddressId,
       voucherCode: voucherCode.trim() || undefined,
     }
-  }
+  }, [selectedAddressId, voucherCode])
 
   useEffect(() => {
     if (!selectedAddressId) {
@@ -321,7 +360,7 @@ export default function CheckoutPage() {
     }, 350)
 
     return () => window.clearTimeout(timer)
-  }, [selectedAddressId, voucherCode])
+  }, [selectedAddressId, voucherCode, canLoadCheckoutData, buildCheckoutPayload])
 
   async function handleCheckout() {
     const payload = buildCheckoutPayload()
@@ -332,11 +371,21 @@ export default function CheckoutPage() {
       const data = await submitCheckout(payload)
       toast.success(`Dat hang thanh cong #${data.id}`)
       setPreview(data)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Thanh toan that bai')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Thanh toan that bai'))
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading || !isSignedIn) {
+    return (
+      <div className="min-h-screen bg-[#F5F0E8] px-4 py-12">
+        <div className="mx-auto flex min-h-[60vh] w-full max-w-[1240px] items-center justify-center text-slate-500">
+          Đang chuyển đến trang đăng nhập...
+        </div>
+      </div>
+    )
   }
 
   return (

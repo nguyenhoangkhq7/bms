@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/auth/context";
 import { LoginRequest } from "@/src/api/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading, error, clearError } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const redirectPath = useMemo(() => {
+    const value = searchParams.get("redirect");
+    if (!value || !value.startsWith("/") || value.startsWith("/auth")) {
+      return "/";
+    }
+
+    return value;
+  }, [searchParams]);
 
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
@@ -42,7 +51,11 @@ export default function LoginPage() {
       };
 
       const userProfile = await login(credentials);
-      router.replace(userProfile.role === "ADMIN" ? "/admin" : "/");
+      if (userProfile.role === "ADMIN") {
+        router.replace("/admin");
+      } else {
+        router.replace(redirectPath);
+      }
     } catch {
       // Error is handled by context
     }
