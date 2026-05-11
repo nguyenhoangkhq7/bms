@@ -20,7 +20,7 @@ public class SemanticEmbeddingBackfillRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         try {
-            backfillService.backfillMissingEmbeddings();
+            backfillService.backfillAllMissingSemanticData();
         } catch (Exception exception) {
             log.warn("Semantic embedding backfill failed on startup", exception);
         }

@@ -15,6 +15,7 @@ public record SemanticBookSearchDTO(
     String imageUrl,
     String description,
     String categoryName,
-    Long parentCategoryId
+    Long parentCategoryId,
+    Double combinedScore
 ) {
 }

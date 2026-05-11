@@ -26,4 +26,6 @@ public interface SemanticBookSearchProjection {
     String getCategoryName();
 
     Long getParentCategoryId();
+
+    Double getCombinedScore();
 }

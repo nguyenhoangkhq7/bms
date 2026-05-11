@@ -45,4 +45,32 @@ public class SemanticEmbeddingBackfillService {
 
         log.info("Semantic embedding backfill completed. Updated {} books", updatedCount);
     }
+
+    @Transactional
+    public void backfillMissingFtsTokens() {
+        List<Book> booksWithoutFtsTokens = bookSemanticRepository.findBooksWithoutFtsTokens();
+        if (booksWithoutFtsTokens.isEmpty()) {
+            log.info("Semantic FTS backfill skipped: no books missing FTS tokens");
+            return;
+        }
+
+        log.info("Semantic FTS backfill started for {} books", booksWithoutFtsTokens.size());
+        int updatedCount = 0;
+        for (Book book : booksWithoutFtsTokens) {
+            try {
+                bookSemanticRepository.updateFtsTokens(book.getId());
+                updatedCount++;
+            } catch (Exception exception) {
+                log.warn("Failed to backfill FTS tokens for book id={} title={}", book.getId(), book.getTitle(), exception);
+            }
+        }
+
+        log.info("Semantic FTS backfill completed. Updated {} books", updatedCount);
+    }
+
+    @Transactional
+    public void backfillAllMissingSemanticData() {
+        backfillMissingEmbeddings();
+        backfillMissingFtsTokens();
+    }
 }

@@ -3,8 +3,32 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ALTER TABLE books
 ADD COLUMN IF NOT EXISTS embedding vector(768);
 
+ALTER TABLE books
+ADD COLUMN IF NOT EXISTS fts_tokens tsvector;
+
 CREATE INDEX IF NOT EXISTS books_embedding_hnsw_idx
 ON books USING hnsw (embedding vector_cosine_ops);
+
+CREATE INDEX IF NOT EXISTS books_fts_tokens_gin_idx
+ON books USING gin (fts_tokens);
+
+CREATE OR REPLACE FUNCTION books_fts_tokens_trigger() RETURNS trigger AS $$
+BEGIN
+    NEW.fts_tokens := to_tsvector('simple', coalesce(NEW.title, '') || ' ' || coalesce(NEW.author, ''));
+    RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_books_fts_tokens ON books;
+
+CREATE TRIGGER trg_books_fts_tokens
+BEFORE INSERT OR UPDATE OF title, author
+ON books
+FOR EACH ROW
+EXECUTE FUNCTION books_fts_tokens_trigger();
+
+UPDATE books
+SET fts_tokens = to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(author, ''));
 
 INSERT INTO books (
 	id,
@@ -31,4 +55,10 @@ INSERT INTO books (
 (1010, 'Bóng Đá Hiện Đại', 'Nhiều tác giả', 'NXB Thể Thao', 90000, 22, 'AVAILABLE', 'Tổng hợp chiến thuật, kỹ năng và tư duy thi đấu trong bóng đá hiện đại.', 'https://example.com/bong-da-hien-dai.jpg', 156, 24)
 ON CONFLICT (id) DO NOTHING;
 
+UPDATE books
+SET fts_tokens = to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(author, ''))
+WHERE fts_tokens IS NULL;
+
 SELECT setval(pg_get_serial_sequence('books', 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM books;
+
+-- docker exec -i bookstore-postgres psql -U bookstore_user -d product_db < services/product-service/init-vector.sql
