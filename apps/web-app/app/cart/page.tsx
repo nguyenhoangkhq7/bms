@@ -205,7 +205,7 @@ export default function CartPage() {
                 <span className="text-lg font-semibold text-slate-900">Sản phẩm</span>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                {(cart?.items ?? []).length} orderItem
+                {(cart?.items ?? []).length} sản phẩm
               </span>
             </div>
 
@@ -287,14 +287,14 @@ export default function CartPage() {
                 <span>Tạm tính</span>
                 <span className="font-medium text-slate-900">{formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
+              {/* <div className="flex justify-between text-slate-600">
                 <span>Thuế</span>
                 <span className="font-medium text-slate-900">{formatCurrency(tax)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
+              </div> */}
+              {/* <div className="flex justify-between text-slate-600">
                 <span>Phí giao hàng</span>
                 <span className="font-medium text-slate-900">{formatCurrency(shipping)}</span>
-              </div>
+              </div> */}
             </div>
 
             <hr className="my-5 border-slate-200" />
