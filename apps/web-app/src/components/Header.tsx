@@ -80,6 +80,17 @@ export default function Header() {
     router.push('/auth/login');
   };
 
+  const handleLogout = async () => {
+    if (isLoading) return;
+
+    await logout();
+    router.push('/auth/login');
+  };
+
+  if (pathname.startsWith('/auth')) {
+    return null;
+  }
+
   if (isAdminRoute) {
     return null;
   }
@@ -233,7 +244,7 @@ export default function Header() {
                       <User size={20} />
                     </Link>
                     <button
-                      onClick={logout}
+                      onClick={handleLogout}
                       disabled={isLoading}
                       title="Thoát"
                       className="p-2 rounded-full hover:bg-red-50 transition-colors text-gray-600 hover:text-red-600 disabled:opacity-60"
