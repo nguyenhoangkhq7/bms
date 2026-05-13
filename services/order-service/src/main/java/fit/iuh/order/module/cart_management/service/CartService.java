@@ -83,9 +83,9 @@ public class CartService {
 
     @Transactional(readOnly = true)
     public CartResponse getCartByUserId(Long userId) {
-        Cart cart = cartRepository.findByUserId(userId)
-            .orElseThrow(() -> new NotFoundException("Cart not found for userId=" + userId));
-        return toResponse(cart);
+        return cartRepository.findByUserId(userId)
+            .map(this::toResponse)
+            .orElseGet(() -> new CartResponse(null, userId, BigDecimal.ZERO, List.of()));
     }
 
     private Cart createCart(Long userId) {

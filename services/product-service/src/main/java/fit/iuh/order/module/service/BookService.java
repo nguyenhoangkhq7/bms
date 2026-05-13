@@ -11,12 +11,16 @@ import fit.iuh.order.module.semanticsearch.SemanticEmbeddingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class BookService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BookService.class);
 
     @Autowired
     private BookRepository bookRepository;
@@ -74,10 +78,14 @@ public class BookService {
         }
 
         Book savedBook = bookRepository.save(book);
-        float[] embedding = semanticEmbeddingService.generateEmbedding(savedBook.buildTextForEmbedding());
-        String embeddingLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
-        bookSemanticRepository.updateEmbedding(savedBook.getId(), embeddingLiteral);
-        savedBook.setEmbedding(embedding);
+        try {
+            float[] embedding = semanticEmbeddingService.generateEmbedding(savedBook.buildTextForEmbedding());
+            String embeddingLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
+            bookSemanticRepository.updateEmbedding(savedBook.getId(), embeddingLiteral);
+            savedBook.setEmbedding(embedding);
+        } catch (Exception ex) {
+            logger.warn("Embedding generation failed for bookId={}: {}", savedBook.getId(), ex.getMessage());
+        }
 
         return savedBook;
     }
@@ -115,10 +123,14 @@ public class BookService {
         }
 
         Book savedBook = bookRepository.save(existingBook);
-        float[] embedding = semanticEmbeddingService.generateEmbedding(savedBook.buildTextForEmbedding());
-        String embeddingLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
-        bookSemanticRepository.updateEmbedding(savedBook.getId(), embeddingLiteral);
-        savedBook.setEmbedding(embedding);
+        try {
+            float[] embedding = semanticEmbeddingService.generateEmbedding(savedBook.buildTextForEmbedding());
+            String embeddingLiteral = semanticEmbeddingService.toVectorLiteral(embedding);
+            bookSemanticRepository.updateEmbedding(savedBook.getId(), embeddingLiteral);
+            savedBook.setEmbedding(embedding);
+        } catch (Exception ex) {
+            logger.warn("Embedding generation failed for bookId={}: {}", savedBook.getId(), ex.getMessage());
+        }
 
         return savedBook;
     }
