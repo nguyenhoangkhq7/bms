@@ -124,6 +124,15 @@ export function useRegisterForm() {
       newErrors.cityProvince = "City/Province is required";
     }
 
+    if (formData.dateOfBirth) {
+      const selectedDate = new Date(`${formData.dateOfBirth}T00:00:00`);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate >= today) {
+        newErrors.dateOfBirth = "Date of birth must be in the past";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData]);
@@ -139,7 +148,7 @@ export function useRegisterForm() {
       ward: formData.ward,
       district: formData.district,
       cityProvince: formData.cityProvince,
-      dateOfBirth: formData.dateOfBirth,
+      ...(formData.dateOfBirth ? { dateOfBirth: formData.dateOfBirth } : {}),
     };
   };
 

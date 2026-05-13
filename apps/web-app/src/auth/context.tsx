@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return userProfile;
       } catch (err: any) {
         const errorMessage =
+          (typeof err === "string" ? err : undefined) ||
           err?.error?.message ||
           err?.message ||
           "Login failed. Please try again.";
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userProfile);
       } catch (err: any) {
         const errorMessage =
+          (typeof err === "string" ? err : undefined) ||
           err?.error?.message ||
           err?.message ||
           "Registration failed. Please try again.";

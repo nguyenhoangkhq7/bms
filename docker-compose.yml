@@ -12,7 +12,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - ./db/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     networks:
       - bookstore-network
     healthcheck:
@@ -31,7 +31,7 @@ services:
     build:
       context: ./services/identity-service
       dockerfile: Dockerfile
-    image: ${IDENTITY_SERVICE_IMAGE:-identity-service:latest}
+    image: "${IDENTITY_SERVICE_IMAGE:-identity-service:latest}"
     container_name: identity-service
     restart: on-failure
     depends_on:
@@ -60,7 +60,7 @@ services:
     build:
       context: ./services/product-service
       dockerfile: Dockerfile
-    image: ${PRODUCT_SERVICE_IMAGE:-product-service:latest}
+    image: "${PRODUCT_SERVICE_IMAGE:-product-service:latest}"
     container_name: product-service
     restart: on-failure
     depends_on:
@@ -87,7 +87,7 @@ services:
     build:
       context: ./services/order-service
       dockerfile: Dockerfile
-    image: ${ORDER_SERVICE_IMAGE:-order-service:latest}
+    image: "${ORDER_SERVICE_IMAGE:-order-service:latest}"
     container_name: order-service
     restart: on-failure
     depends_on:
@@ -98,7 +98,7 @@ services:
         limits:
           memory: 768M
     environment:
-      - ORDER_DB_URL=${ORDER_DB_URL:-jdbc:postgresql://postgres:5432/order_db}
+      - "ORDER_DB_URL=${ORDER_DB_URL:-jdbc:postgresql://postgres:5432/order_db}"
       - ORDER_DB_USER=${ORDER_DB_USER:-order_db}
       - ORDER_DB_PASSWORD=${ORDER_DB_PASSWORD:-order_db}
     networks:
@@ -108,7 +108,7 @@ services:
     build:
       context: ./services/promotion-service
       dockerfile: Dockerfile
-    image: ${PROMOTION_SERVICE_IMAGE:-promotion-service:latest}
+    image: "${PROMOTION_SERVICE_IMAGE:-promotion-service:latest}"
     container_name: promotion-service
     restart: on-failure
     depends_on:
@@ -129,7 +129,7 @@ services:
     build:
       context: ./services/report-service
       dockerfile: Dockerfile
-    image: ${REPORT_SERVICE_IMAGE:-report-service:latest}
+    image: "${REPORT_SERVICE_IMAGE:-report-service:latest}"
     container_name: report-service
     restart: on-failure
     depends_on:
@@ -150,7 +150,7 @@ services:
     build:
       context: ./apps/web-app
       dockerfile: Dockerfile
-    image: ${WEB_APP_IMAGE:-web-app:latest}
+    image: "${WEB_APP_IMAGE:-web-app:latest}"
     container_name: web-app
     restart: unless-stopped
     deploy:
@@ -172,7 +172,7 @@ services:
     build:
       context: ./gateway
       dockerfile: Dockerfile
-    image: ${GATEWAY_IMAGE:-gateway:latest}
+    image: "${GATEWAY_IMAGE:-gateway:latest}"
     container_name: gateway
     restart: unless-stopped
     ports:

@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost/api/v1/identity";
+  process.env.NEXT_PUBLIC_API_URL || "/api/v1/identity";
 
 class ApiClient {
   private instance: AxiosInstance;
