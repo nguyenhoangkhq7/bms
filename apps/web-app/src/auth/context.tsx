@@ -21,7 +21,7 @@ interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
   isSignedIn: boolean;
-  login: (credentials: LoginRequest) => Promise<void>;
+  login: (credentials: LoginRequest) => Promise<UserProfile>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -78,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("userId", String(userProfile.id));
         localStorage.setItem("authMode", "real");
         setUser(userProfile);
+        return userProfile;
       } catch (err: any) {
         const errorMessage =
           (typeof err === "string" ? err : undefined) ||

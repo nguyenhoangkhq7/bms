@@ -55,25 +55,25 @@ export default function Home() {
 
 function HomeContent() {
   const searchParams = useSearchParams();
-  const searchQuery = (searchParams.get('search') || '').toLowerCase();
+  const searchQuery = (searchParams.get('search') || '').trim();
   const refreshToken = searchParams.get('updated');
+  const SEARCH_PAGE_SIZE = 10;
 
-  // State quản lý dữ liệu sách
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
+  const [loadingMoreSearchResults, setLoadingMoreSearchResults] = useState(false);
 
-  // State quản lý danh mục
   const [categories, setCategories] = useState<TreeCategory[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<number[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
-  
-  // State quản lý khoảng giá
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [pendingBookId, setPendingBookId] = useState<number | null>(null);
+
   const { addToCart, loading: addToCartLoading } = useAddToCart();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const router = useRouter();
 
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -101,6 +101,19 @@ function HomeContent() {
     setMaxPrice('');
   };
 
+  const getAllowedCategoryIds = () => {
+    const allowedCategoryIds = new Set<number>(selectedCategories);
+
+    selectedCategories.forEach((id) => {
+      const category = categories.find((item) => item.id === id);
+      if (category?.subCategories?.length) {
+        category.subCategories.forEach((subCategory) => allowedCategoryIds.add(subCategory.id));
+      }
+    });
+
+    return Array.from(allowedCategoryIds);
+  };
+
   useEffect(() => {
     const handleClearFilters = () => {
       clearFilters();
@@ -109,7 +122,122 @@ function HomeContent() {
     return () => window.removeEventListener('clearFilters', handleClearFilters);
   }, []);
 
-  // Icon mapping cho các danh mục cha
+  useEffect(() => {
+    if (isSignedIn && user?.role === 'ADMIN') {
+      router.replace('/admin');
+    }
+  }, [isSignedIn, user, router]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const rawCategories = await fetchWithRetry(() => categoryService.getAllCategories()) as RawCategory[];
+        const parentCategories = rawCategories.filter((cat) => cat.parentId === null);
+
+        const treeCategories: TreeCategory[] = parentCategories.map((parent) => ({
+          ...parent,
+          subCategories: rawCategories.filter((child) => child.parentId === parent.id),
+        }));
+
+        setCategories(treeCategories);
+
+        if (treeCategories.length > 0) {
+          setExpandedCategories(treeCategories.slice(0, 3).map((category) => category.id));
+        }
+      } catch (err) {
+        console.error('[HOME] Error fetching categories:', err);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const fetchAllBooks = async () => {
+      if (searchQuery) return;
+
+      try {
+        console.log('[HOME] useEffect triggered with refreshToken:', refreshToken);
+        setLoading(true);
+        setHasMoreSearchResults(false);
+        const data = await fetchWithRetry(() => bookService.getAllBooks());
+        setBooks(data);
+      } catch (err) {
+        console.error('[HOME] Error fetching books:', err);
+        setError('Không thể tải danh sách sách. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllBooks();
+  }, [refreshToken, searchQuery]);
+
+  useEffect(() => {
+    const fetchSearchBooks = async () => {
+      if (!searchQuery) return;
+
+      try {
+        setLoading(true);
+        setHasMoreSearchResults(false);
+        const categoryIdsCsv = getAllowedCategoryIds().join(',');
+        const data = await fetchWithRetry(() =>
+          bookService.hybridSearchBooks(searchQuery, SEARCH_PAGE_SIZE, 0, {
+            categoryIdsCsv: categoryIdsCsv || undefined,
+            minPrice: minPrice || undefined,
+            maxPrice: maxPrice || undefined,
+          }),
+        );
+
+        setHasMoreSearchResults(data.length === SEARCH_PAGE_SIZE);
+        setBooks(data);
+      } catch (err) {
+        console.error('[HOME] Error fetching books:', err);
+        setError('Không thể tải danh sách sách. Vui lòng thử lại sau.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSearchBooks();
+  }, [searchQuery, selectedCategories, minPrice, maxPrice, categories]);
+
+  if (isSignedIn && user?.role === 'ADMIN') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F0E8]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-[#1F4788]" />
+          <p className="text-sm font-medium text-[#666]">Đang chuyển đến trang quản lý...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleLoadMoreSearchResults = async () => {
+    if (!searchQuery || loadingMoreSearchResults || !hasMoreSearchResults) return;
+
+    try {
+      setLoadingMoreSearchResults(true);
+      const nextOffset = books.length;
+      const categoryIdsCsv = getAllowedCategoryIds().join(',');
+      const nextPage = await fetchWithRetry(() =>
+        bookService.hybridSearchBooks(searchQuery, SEARCH_PAGE_SIZE, nextOffset, {
+          categoryIdsCsv: categoryIdsCsv || undefined,
+          minPrice: minPrice || undefined,
+          maxPrice: maxPrice || undefined,
+        }),
+      );
+
+      setBooks((currentBooks) => [...currentBooks, ...nextPage]);
+      setHasMoreSearchResults(nextPage.length === SEARCH_PAGE_SIZE);
+    } catch (err) {
+      console.error('[HOME] Error loading more search results:', err);
+      toast.error('Không thể tải thêm kết quả tìm kiếm.');
+    } finally {
+      setLoadingMoreSearchResults(false);
+    }
+  };
+
   const getCategoryIcon = (categoryId: number) => {
     switch (categoryId) {
       case 1: return <BookOpen size={18} />;
@@ -117,63 +245,12 @@ function HomeContent() {
       case 3: return <Baby size={18} />;
       case 4: return <Brain size={18} />;
       case 6: return <GraduationCap size={18} />;
-      case 11: 
+      case 11:
       case 19: return <Laptop size={18} />;
       case 12: return <Landmark size={18} />;
       default: return <Library size={18} />;
     }
   };
-
-  useEffect(() => {
-    // Hàm tải danh sách sách
-    const fetchBooks = async () => {
-      try {
-        console.log('[HOME] useEffect triggered with refreshToken:', refreshToken);
-        setLoading(true);
-        const data = await fetchWithRetry(() => bookService.getAllBooks());
-        console.log('[HOME] Books fetched from API:', data?.length || 0, 'books', data);
-        setBooks(data);
-      } catch (err) {
-        console.error("[HOME] Error fetching books:", err);
-        setError("Không thể tải danh sách sách. Vui lòng thử lại sau.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Hàm tải và xử lý danh mục phân cấp
-    const fetchCategories = async () => {
-      try {
-        const rawCategories = await fetchWithRetry(() => categoryService.getAllCategories()) as RawCategory[];
-        console.log('[HOME] Categories fetched:', rawCategories?.length || 0, 'categories');
-        
-        // Dựa vào Postman: Lọc danh mục cha có parentId === null
-        const parentCategories = rawCategories.filter(cat => cat.parentId === null);
-        
-        // Gộp danh mục con vào danh mục cha tương ứng
-        const treeCategories: TreeCategory[] = parentCategories.map(parent => {
-            return {
-                ...parent,
-                // Dựa vào Postman: Tìm các con có parentId trùng với id của cha
-                subCategories: rawCategories.filter(child => child.parentId === parent.id)
-            };
-        });
-
-        setCategories(treeCategories);
-        
-        // Mặc định mở rộng 3 danh mục đầu tiên
-        if(treeCategories.length > 0) {
-            setExpandedCategories(treeCategories.slice(0, 3).map(c => c.id));
-        }
-
-      } catch (err) {
-        console.error("[HOME] Error fetching categories:", err);
-      }
-    };
-
-    fetchBooks();
-    fetchCategories(); 
-  }, [refreshToken]);
 
   // Hàm xử lý đóng/mở danh mục
   const toggleCategoryExpand = (categoryId: number) => {
@@ -195,29 +272,20 @@ function HomeContent() {
 
   // Tính toán danh sách sách sau khi lọc
   const filteredBooks = books.filter(book => {
+    // Lọc theo danh mục chỉ áp dụng cho chế độ không search.
+    if (searchQuery) {
+      return true;
+    }
+
     // Lọc theo danh mục
     const catId = book.category?.id || book.categoryId;
     
     // Nếu chọn danh mục cha, bao gồm cả danh mục con của nó
-    const allowedCategoryIds = new Set(selectedCategories);
-    selectedCategories.forEach(id => {
-       const cat = categories.find(c => c.id === id);
-       if (cat && cat.subCategories) {
-          cat.subCategories.forEach(sub => allowedCategoryIds.add(sub.id));
-       }
-    });
+    const allowedCategoryIds = new Set(getAllowedCategoryIds());
 
     const matchCategory = selectedCategories.length === 0 || allowedCategoryIds.has(catId) || allowedCategoryIds.has(book.parentCategoryId as number || book.category?.parentId as number);
 
-    // Lọc theo từ khóa tìm kiếm
-    const title = (book.title || '').toLowerCase();
-    const author = (book.author || '').toLowerCase();
-    const publisher = (book.publisher || '').toLowerCase();
-
-    const matchSearch = !searchQuery || 
-                        title.includes(searchQuery) || 
-                        author.includes(searchQuery) || 
-                        publisher.includes(searchQuery);
+    const matchSearch = true;
 
     // Lọc theo khoảng giá
     const price = Number(book.price) || 0;
@@ -393,7 +461,9 @@ function HomeContent() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-12 text-center">
               <BookOpen className="mx-auto mb-4 h-12 w-12 text-slate-400" />
               <p className="text-slate-600">
-                {selectedCategories.length > 0 || minPrice || maxPrice
+                {searchQuery
+                  ? 'Không tìm thấy sách phù hợp với từ khóa tìm kiếm.'
+                  : selectedCategories.length > 0 || minPrice || maxPrice
                   ? 'Không tìm thấy sách phù hợp với tiêu chí lọc.'
                   : 'Không có sách nào để hiển thị.'}
               </p>
@@ -495,6 +565,22 @@ function HomeContent() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {searchQuery && filteredBooks.length > 0 && (
+            <div className="mt-8 flex justify-center">
+              {hasMoreSearchResults ? (
+                <button
+                  onClick={handleLoadMoreSearchResults}
+                  disabled={loadingMoreSearchResults}
+                  className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loadingMoreSearchResults ? 'Đang tải thêm...' : 'Hiển thị thêm kết quả'}
+                </button>
+              ) : (
+                <p className="text-sm text-slate-500">Đã hiển thị hết kết quả phù hợp.</p>
+              )}
             </div>
           )}
         </div>
