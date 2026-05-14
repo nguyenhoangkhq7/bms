@@ -183,7 +183,7 @@ export default function Header() {
               >
                 Trang chủ
               </Link>
-              <Link href="/orders" className="transition-colors hover:text-black">
+              <Link href="/order" className="transition-colors hover:text-black">
                 Đơn hàng
               </Link>
               {user?.role === 'ADMIN' && (
