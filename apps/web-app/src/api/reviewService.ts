@@ -1,6 +1,6 @@
 // src/api/reviewService.ts
 import { BASE_URL, handleResponse } from './apiConfig';
-import type { Review, ReviewCreateRequest } from '@/src/types';
+import type { Review, ReviewCreateRequest, ReviewUpdateRequest } from '@/src/types';
 
 export const reviewService = {
     getReviewsOfBook: async (bookId: number): Promise<Review[]> => {
@@ -11,6 +11,15 @@ export const reviewService = {
     addReviewToBook: async (bookId: number, reviewData: ReviewCreateRequest): Promise<Review | null> => {
         const response = await fetch(`${BASE_URL}/${bookId}/reviews`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reviewData),
+        });
+        return await handleResponse<Review>(response);
+    },
+
+    updateReview: async (reviewId: number, reviewData: ReviewUpdateRequest, userId: number, userName: string): Promise<Review | null> => {
+        const response = await fetch(`${BASE_URL}/reviews/${reviewId}?userId=${userId}&userName=${encodeURIComponent(userName)}`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(reviewData),
         });

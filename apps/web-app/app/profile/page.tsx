@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/src/auth/context";
 import { userService, UserProfile } from "@/src/api/userService";
 import { 
@@ -22,7 +22,8 @@ import { toast } from "react-hot-toast";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isSignedIn, isLoading: authLoading } = useAuth();
+  const pathname = usePathname();
+  const { isSignedIn, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -43,11 +44,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!authLoading && !isSignedIn) {
-      router.push("/auth/login");
+      router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
     } else if (isSignedIn) {
       fetchProfile();
     }
-  }, [isSignedIn, authLoading, router]);
+  }, [isSignedIn, authLoading, pathname, router]);
 
   const fetchProfile = async () => {
     try {
@@ -63,7 +64,7 @@ export default function ProfilePage() {
         district: data.district || "",
         cityProvince: data.cityProvince || ""
       });
-    } catch (err) {
+    } catch {
       toast.error("Không thể tải thông tin hồ sơ");
     } finally {
       setIsPageLoading(false);
@@ -77,7 +78,7 @@ export default function ProfilePage() {
       await userService.updateProfile({ fullName, dateOfBirth: dateOfBirth || null });
       toast.success("Cập nhật thông tin cơ bản thành công");
       fetchProfile();
-    } catch (err) {
+    } catch {
       toast.error("Cập nhật thất bại");
     } finally {
       setIsUpdating(false);
@@ -91,7 +92,7 @@ export default function ProfilePage() {
       await userService.updateAddress(address);
       toast.success("Cập nhật địa chỉ thành công");
       fetchProfile();
-    } catch (err) {
+    } catch {
       toast.error("Cập nhật địa chỉ thất bại");
     } finally {
       setIsUpdating(false);
@@ -112,22 +113,20 @@ export default function ProfilePage() {
       await userService.updateAvatar(file);
       toast.success("Cập nhật ảnh đại diện thành công");
       fetchProfile();
-    } catch (err) {
+    } catch {
       toast.error("Tải ảnh lên thất bại. Vui lòng kiểm tra lại cấu hình S3.");
     } finally {
       setIsUploading(false);
     }
   };
 
-  if (authLoading || isPageLoading) {
+  if (authLoading || isPageLoading || !isSignedIn) {
     return (
       <div className="min-h-screen bg-[#F5F0E8] flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-[#1F4788] animate-spin" />
       </div>
     );
   }
-
-  if (!isSignedIn) return null;
 
   return (
     <div className="min-h-screen bg-[#F5F0E8] py-12 px-4">

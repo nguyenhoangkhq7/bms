@@ -19,5 +19,21 @@ spring:
       hibernate:
         format_sql: true
 
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://ai-engine:11434}
+  embedding:
+    model: ${OLLAMA_EMBEDDING_MODEL:granite-embedding-311m-multilingual-r2}
+
 server:
   port: 8082
+  error:
+    include-message: always
+
+aws:
+  region: ${AWS_REGION}
+  access:
+    key: ${AWS_ACCESS_KEY}
+  secret:
+    key: ${AWS_SECRET_KEY}
+  s3:
+    bucket: ${AWS_S3_BUCKET:bms.image}

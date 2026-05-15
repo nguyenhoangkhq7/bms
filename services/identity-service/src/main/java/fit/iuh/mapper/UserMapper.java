@@ -12,6 +12,7 @@ import org.mapstruct.*;
     unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface UserMapper {
+   @Mapping(target = "role", expression = "java(user.getRole() != null ? user.getRole().name() : null)")
    UserDto toDto(User user);
 
    @Mapping(source = "name", target = "fullName")

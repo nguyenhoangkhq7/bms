@@ -3,14 +3,10 @@ package fit.iuh.order.module.models;
 import fit.iuh.order.module.models.enums.OrderStatus;
 import fit.iuh.order.module.state.OrderState;
 import fit.iuh.order.module.strategy.NotificationStrategy;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,6 +20,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Order {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -33,11 +30,32 @@ public class Order {
     private String orderCode;
 
     @Column(nullable = false)
+    private LocalDateTime orderDate;
+
+    @Column(nullable = false)
     private BigDecimal totalAmount;
+
+    @Column(nullable = false)
+    private BigDecimal subtotalAmount;
+
+    @Column(nullable = false)
+    private BigDecimal baseShippingFee;
+
+    @Column(nullable = false)
+    private BigDecimal shippingDiscount;
+
+    @Column(nullable = false)
+    private BigDecimal orderDiscount;
+
+    @Column(nullable = false)
+    private BigDecimal finalTotal;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> items;
 
     @Column(nullable = false)
     private String shippingAddress;

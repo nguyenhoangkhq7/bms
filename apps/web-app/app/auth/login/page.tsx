@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/src/auth/context";
 import { LoginRequest } from "@/src/api/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading, error, clearError } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const redirectPath = useMemo(() => {
+    const value = searchParams.get("redirect");
+    if (!value || !value.startsWith("/") || value.startsWith("/auth")) {
+      return "/";
+    }
+
+    return value;
+  }, [searchParams]);
 
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
@@ -41,9 +50,13 @@ export default function LoginPage() {
         password,
       };
 
-      await login(credentials);
-      router.push("/");
-    } catch (err: any) {
+      const userProfile = await login(credentials);
+      if (userProfile.role === "ADMIN") {
+        router.replace("/admin");
+      } else {
+        router.replace(redirectPath);
+      }
+    } catch {
       // Error is handled by context
     }
   };
@@ -187,7 +200,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-[#666]">
-              Don't have an account?{" "}
+              Do not have an account?{" "}
               <Link
                 href="/auth/register"
                 className="font-bold text-[#1F4788] hover:text-[#2C5AA0]"

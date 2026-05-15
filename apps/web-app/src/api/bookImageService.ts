@@ -9,6 +9,23 @@ export const bookImageService = {
         return (await handleResponse<BookImage[]>(response)) ?? [];
     },
 
+    // POST /api/upload
+    uploadImage: async (file: File): Promise<string | null> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Use the products gateway mapping or absolute URL. 
+        // Assuming BASE_URL is something like http://localhost/api/v1/products/api/books
+        // So the upload URL is http://localhost/api/v1/products/api/upload
+        const uploadUrl = BASE_URL.replace('/api/books', '/api/upload');
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await handleResponse<{ url: string }>(response);
+        return data ? data.url : null;
+    },
+
     // POST /api/books/{bookId}/images
     addImageToBook: async (bookId: number, imageUrl: string): Promise<BookImage | null> => {
         const response = await fetch(`${BASE_URL}/${bookId}/images`, {

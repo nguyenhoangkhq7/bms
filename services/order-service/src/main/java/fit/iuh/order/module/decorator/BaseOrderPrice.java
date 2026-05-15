@@ -10,7 +10,27 @@ public class BaseOrderPrice implements OrderPrice {
     }
 
     @Override
-    public BigDecimal calculate() {
+    public BigDecimal getSubtotal() {
         return baseAmount;
+    }
+
+    @Override
+    public BigDecimal getBaseShippingFee() {
+        return BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal getShippingDiscount() {
+        return BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal getOrderDiscount() {
+        return BigDecimal.ZERO;
+    }
+
+    @Override
+    public BigDecimal getFinalTotal() {
+        return baseAmount.max(BigDecimal.ZERO);
     }
 }

@@ -1,6 +1,14 @@
-// Server Component — không cần 'use client' vì không sử dụng hooks hay event handlers
+"use client";
+
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith('/auth')) {
+    return null;
+  }
+
   return (
     <footer className="mt-auto border-t border-gray-200 bg-white">
       <div className="mx-auto flex w-full flex-col gap-6 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 xl:px-10">

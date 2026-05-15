@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { AddToCartContainer } from '@/src/modules/cart'
+import { AddToCartContainer } from '@/src/cart'
 
 export default function Page() {
   const book = { id: 100, title: 'Title', author: 'Author', price: 45 }

@@ -18,3 +18,12 @@ spring:
 
 server:
   port: 8083
+
+external:
+  product-service:
+    base-url: ${PRODUCT_SERVICE_URL:http://product-service:8082}
+  promotion-service:
+    base-url: ${PROMOTION_SERVICE_URL:http://promotion-service:8084}
+  openrouteservice:
+    base-url: ${OPENROUTESERVICE_BASE_URL:https://api.openrouteservice.org}
+    api-key: ${OPENROUTESERVICE_API_KEY:}

@@ -138,10 +138,8 @@ export default function AddBookPage() {
       setSelectedParentCat('');
       setSelectedChildCat('');
 
-      // Redirect after success with a cache-busting token so the home page refetches books.
-      const redirectUrl = `/?updated=${Date.now()}`;
-      console.log('[ADD-BOOK] Redirecting to:', redirectUrl);
-      setTimeout(() => router.push(redirectUrl), 2000);
+      // Redirect after success
+      setTimeout(() => router.push('/admin/books'), 2000);
     } catch (err: unknown) {
       console.error('[ADD-BOOK] Error creating book:', err);
       setError((err as Error).message || 'Có lỗi xảy ra khi thêm sách. Vui lòng thử lại.');
@@ -293,7 +291,7 @@ export default function AddBookPage() {
       {/* HEADER */}
       <div style={headerStyle}>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/admin')}
           style={backBtnStyle}
           onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
           onMouseLeave={e => e.currentTarget.style.background = '#fff'}
@@ -505,14 +503,17 @@ export default function AddBookPage() {
                 accept="image/*"
                 id="cover-file-input"
                 style={{ display: 'none' }}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setForm(prev => ({ ...prev, imageUrl: reader.result as string }));
-                    };
-                    reader.readAsDataURL(file);
+                    try {
+                      const uploadedUrl = await bookImageService.uploadImage(file);
+                      if (uploadedUrl) {
+                        setForm(prev => ({ ...prev, imageUrl: uploadedUrl }));
+                      }
+                    } catch (error) {
+                      console.error("Lỗi upload ảnh:", error);
+                    }
                   }
                 }}
               />
@@ -582,16 +583,19 @@ export default function AddBookPage() {
                     accept="image/*"
                     id={`secondary-file-${index}`}
                     style={{ display: 'none' }}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          const updated = [...secondaryImages];
-                          updated[index] = reader.result as string;
-                          setSecondaryImages(updated);
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                          const uploadedUrl = await bookImageService.uploadImage(file);
+                          if (uploadedUrl) {
+                            const updated = [...secondaryImages];
+                            updated[index] = uploadedUrl;
+                            setSecondaryImages(updated);
+                          }
+                        } catch (error) {
+                          console.error("Lỗi upload ảnh phụ:", error);
+                        }
                       }
                     }}
                   />

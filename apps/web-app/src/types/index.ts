@@ -38,21 +38,34 @@ export type BookUpdateRequest = BookCreateRequest;
 export interface Category {
   id: number;
   name: string;
+  parentId?: number | null;
+  subCategories?: Category[];
 }
 
 // ===== Review =====
 export interface Review {
   id: number;
-  bookId: number;
-  reviewer: string;
+  bookId?: number;
+  userName: string;
+  userId?: number;
   content: string;
   rating: number;
+  mediaUrls?: string[];
+  createdAt?: string;
 }
 
 export interface ReviewCreateRequest {
-  reviewer: string;
+  userName: string;
+  userId?: number;
   content: string;
   rating: number;
+  mediaUrls?: string[];
+}
+
+export interface ReviewUpdateRequest {
+  content: string;
+  rating: number;
+  mediaUrls?: string[];
 }
 
 // ===== BookImage =====

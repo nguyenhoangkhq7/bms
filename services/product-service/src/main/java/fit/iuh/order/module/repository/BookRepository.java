@@ -14,4 +14,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     // Tìm tất cả sách thuộc về một danh mục cha (truy vấn cực nhanh nhờ parentCategoryId)
     List<Book> findByParentCategoryId(Long parentId);
+
+    boolean existsByCategoryId(Long categoryId);
+    boolean existsByParentCategoryId(Long parentId);
 }
