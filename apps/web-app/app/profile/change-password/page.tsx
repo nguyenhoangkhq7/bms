@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/src/auth/context";
 import { KeyRound, Mail, ShieldCheck, Lock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { 
     user, 
     isSignedIn, 
@@ -27,9 +28,9 @@ export default function ChangePasswordPage() {
 
   useEffect(() => {
     if (!isLoading && !isSignedIn) {
-      router.push("/auth/login");
+      router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, [isSignedIn, isLoading, router]);
+  }, [isSignedIn, isLoading, pathname, router]);
 
   const handleSendOtp = async () => {
     try {
@@ -37,7 +38,7 @@ export default function ChangePasswordPage() {
       await sendChangePasswordOtp();
       setStep(2);
       toast.success("Mã OTP đã được gửi đến email của bạn");
-    } catch (err) {
+    } catch {
       // Error handled by context
     }
   };
@@ -64,12 +65,18 @@ export default function ChangePasswordPage() {
       });
       toast.success("Đổi mật khẩu thành công!");
       router.push("/");
-    } catch (err) {
+    } catch {
       // Error handled by context
     }
   };
 
-  if (!isSignedIn) return null;
+  if (isLoading || !isSignedIn) {
+    return (
+      <div className="min-h-[calc(100-80px)] bg-[#F5F0E8] py-12 px-4 flex items-center justify-center">
+        <div className="text-center text-slate-500">Đang chuyển đến trang đăng nhập...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100-80px)] bg-[#F5F0E8] py-12 px-4">

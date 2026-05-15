@@ -1,21 +1,9 @@
 "use client"
 
-import React, { useState } from 'react'
-import { AddToCartContainer } from '@/src/modules/cart'
-import { toast } from 'react-hot-toast'
+import React from 'react'
+import { AddToCartContainer } from '@/src/cart'
 
 export default function ProductPage() {
-  const [userId, setUserId] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('userId') ?? '' : ''))
-  const [token, setToken] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('token') ?? '' : ''))
-
-  function saveAuth() {
-    if (typeof window !== 'undefined') {
-      if (userId) localStorage.setItem('userId', String(userId))
-      if (token) localStorage.setItem('token', token)
-      toast.success('Saved userId/token to localStorage')
-    }
-  }
-
   const book = { id: 101, title: 'Demo Book', author: 'Author', price: 25 }
 
   return (
@@ -36,27 +24,6 @@ export default function ProductPage() {
 
             <div className="mt-8 w-fit">
               <AddToCartContainer bookId={book.id} />
-            </div>
-
-            <div className="mt-10 rounded-xl border border-gray-200 bg-gray-50 p-5">
-              <h3 className="mb-3 text-lg font-semibold">Auth for API test (localStorage)</h3>
-              <div className="grid gap-3 md:grid-cols-[140px_1fr] md:items-center">
-                <label className="text-sm font-medium text-gray-700">User ID</label>
-                <input
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="e.g. 11"
-                />
-                <label className="text-sm font-medium text-gray-700">Bearer token</label>
-                <input
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="optional"
-                />
-              </div>
-              <button onClick={saveAuth} className="mt-4 rounded-md bg-black px-4 py-2 text-sm font-medium text-white">Save credentials</button>
             </div>
           </section>
         </div>
