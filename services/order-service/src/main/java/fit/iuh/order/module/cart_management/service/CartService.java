@@ -84,7 +84,10 @@ public class CartService {
     @Transactional(readOnly = true)
     public CartResponse getCartByUserId(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
-            .orElseThrow(() -> new NotFoundException("Cart not found for userId=" + userId));
+            .orElseGet(() -> Cart.builder()
+                .userId(userId)
+                .totalEstimated(BigDecimal.ZERO)
+                .build());
         return toResponse(cart);
     }
 
