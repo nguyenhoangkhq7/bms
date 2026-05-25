@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   BookOpen,
   Search,
@@ -10,11 +10,18 @@ import {
   LogOut,
   Shield,
   LayoutDashboard,
+  Minus,
+  Plus,
+  X,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getCart } from '@/src/cart/services/cartService';
 import { useAuth } from '@/src/auth/context';
+import { useWishlist } from '@/src/wishlist/context';
+import { useAddToCart } from '@/src/cart/hooks/useAddToCart';
+import { getEffectiveUserId } from '@/src/cart/utils/userContext';
 
 export default function Header() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,6 +31,11 @@ export default function Header() {
   const { user, isSignedIn, logout, isLoading } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const isAdminRoute = pathname.startsWith('/admin');
+  const { items: wishlistItems, removeItem: removeWishlistItem, count: wishlistCount } = useWishlist();
+  const { addToCart, loading: addingToCart } = useAddToCart();
+  const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [wishlistQuantities, setWishlistQuantities] = useState<Record<number, number>>({});
+  const wishlistRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -54,6 +66,44 @@ export default function Header() {
       window.removeEventListener('cart:changed', onCartChanged);
     };
   }, [pathname]);
+
+  // Close wishlist dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wishlistRef.current && !wishlistRef.current.contains(e.target as Node)) {
+        setWishlistOpen(false);
+      }
+    };
+    if (wishlistOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [wishlistOpen]);
+
+  const getWishlistQty = (bookId: number) => wishlistQuantities[bookId] || 1;
+  const setWishlistQty = (bookId: number, qty: number) => {
+    setWishlistQuantities(prev => ({ ...prev, [bookId]: Math.max(1, qty) }));
+  };
+
+  const handleWishlistAddToCart = async (bookId: number) => {
+    if (!isSignedIn) {
+      router.push('/auth/login');
+      return;
+    }
+    const userId = getEffectiveUserId();
+    if (!userId) return;
+    try {
+      await addToCart({ userId, bookId, quantity: getWishlistQty(bookId) });
+      removeWishlistItem(bookId);
+      setWishlistQuantities(prev => {
+        const copy = { ...prev };
+        delete copy[bookId];
+        return copy;
+      });
+    } catch {
+      // error toast is handled by useAddToCart
+    }
+  };
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -216,9 +266,330 @@ export default function Header() {
             </div>
 
             <div className="flex items-center gap-3 border-l border-gray-300 pl-3 sm:gap-5 sm:pl-5">
-              <button className="relative transition-colors hover:text-black">
-                <Heart size={20} />
-              </button>
+              <div ref={wishlistRef} className="relative">
+                <button
+                  onClick={() => setWishlistOpen(prev => !prev)}
+                  className="relative transition-colors hover:text-black"
+                  title="Danh sách yêu thích"
+                >
+                  <Heart
+                    size={20}
+                    fill={wishlistCount > 0 ? '#ef4444' : 'none'}
+                    stroke={wishlistCount > 0 ? '#ef4444' : 'currentColor'}
+                    style={{ transition: 'all 0.2s ease' }}
+                  />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Wishlist Dropdown */}
+                {wishlistOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 'calc(100% + 12px)',
+                      width: '420px',
+                      maxHeight: '520px',
+                      background: '#fff',
+                      borderRadius: '16px',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
+                      zIndex: 100,
+                      overflow: 'hidden',
+                      animation: 'wishlistSlideIn 0.2s ease-out',
+                    }}
+                  >
+                    {/* Header */}
+                    <div style={{
+                      padding: '16px 20px',
+                      borderBottom: '1px solid #f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Heart size={18} fill="#ef4444" stroke="#ef4444" />
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: '#1f2937' }}>
+                          Yêu thích
+                        </span>
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#ef4444',
+                          background: '#fee2e2',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                        }}>
+                          {wishlistCount}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setWishlistOpen(false)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#9ca3af',
+                          padding: '4px',
+                          borderRadius: '6px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#f3f4f6';
+                          e.currentTarget.style.color = '#374151';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.color = '#9ca3af';
+                        }}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Items */}
+                    <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '8px 0' }}>
+                      {wishlistItems.length === 0 ? (
+                        <div style={{
+                          padding: '40px 20px',
+                          textAlign: 'center',
+                          color: '#9ca3af',
+                        }}>
+                          <Heart size={36} stroke="#d1d5db" style={{ margin: '0 auto 12px' }} />
+                          <p style={{ fontSize: '15px', fontWeight: '500', color: '#6b7280', margin: '0 0 4px' }}>
+                            Chưa có sách yêu thích
+                          </p>
+                          <p style={{ fontSize: '13px', margin: '0' }}>
+                            Nhấn biểu tượng ❤️ để thêm sách vào danh sách
+                          </p>
+                        </div>
+                      ) : (
+                        wishlistItems.map(item => (
+                          <div
+                            key={item.bookId}
+                            style={{
+                              display: 'flex',
+                              gap: '12px',
+                              padding: '12px 20px',
+                              transition: 'background 0.15s ease',
+                              alignItems: 'flex-start',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            {/* Book Image */}
+                            <Link
+                              href={`/detail/${item.bookId}`}
+                              onClick={() => setWishlistOpen(false)}
+                              style={{
+                                width: '56px',
+                                height: '72px',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                flexShrink: 0,
+                                background: '#f3f4f6',
+                                border: '1px solid #e5e7eb',
+                              }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={item.imageUrl || 'https://via.placeholder.com/56x72'}
+                                alt={item.title}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            </Link>
+
+                            {/* Book Info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <Link
+                                href={`/detail/${item.bookId}`}
+                                onClick={() => setWishlistOpen(false)}
+                                style={{
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  color: '#1f2937',
+                                  textDecoration: 'none',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  lineHeight: '1.3',
+                                  marginBottom: '2px',
+                                }}
+                              >
+                                {item.title}
+                              </Link>
+                              <p style={{
+                                fontSize: '12px',
+                                color: '#9ca3af',
+                                margin: '0 0 6px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}>
+                                {item.author}
+                              </p>
+                              <p style={{
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                color: '#b45309',
+                                margin: '0 0 8px',
+                              }}>
+                                {item.price?.toLocaleString()} đ
+                              </p>
+
+                              {/* Quantity + Actions */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {/* Quantity Selector */}
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px',
+                                  overflow: 'hidden',
+                                  background: '#fff',
+                                }}>
+                                  <button
+                                    onClick={() => setWishlistQty(item.bookId, getWishlistQty(item.bookId) - 1)}
+                                    style={{
+                                      width: '28px',
+                                      height: '28px',
+                                      border: 'none',
+                                      background: '#f9fafb',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: '#374151',
+                                      transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#e5e7eb'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#f9fafb'}
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                  <span style={{
+                                    width: '32px',
+                                    textAlign: 'center',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    color: '#1f2937',
+                                  }}>
+                                    {getWishlistQty(item.bookId)}
+                                  </span>
+                                  <button
+                                    onClick={() => setWishlistQty(item.bookId, getWishlistQty(item.bookId) + 1)}
+                                    style={{
+                                      width: '28px',
+                                      height: '28px',
+                                      border: 'none',
+                                      background: '#f9fafb',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: '#374151',
+                                      transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#e5e7eb'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#f9fafb'}
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+
+                                {/* Add to Cart */}
+                                <button
+                                  onClick={() => handleWishlistAddToCart(item.bookId)}
+                                  disabled={addingToCart}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '5px 10px',
+                                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    cursor: addingToCart ? 'not-allowed' : 'pointer',
+                                    opacity: addingToCart ? 0.7 : 1,
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: '0 2px 6px rgba(124, 58, 237, 0.25)',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (!addingToCart) {
+                                      e.currentTarget.style.transform = 'translateY(-1px)';
+                                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(124, 58, 237, 0.35)';
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(124, 58, 237, 0.25)';
+                                  }}
+                                >
+                                  <ShoppingCart size={12} />
+                                  Thêm giỏ hàng
+                                </button>
+
+                                {/* Remove */}
+                                <button
+                                  onClick={() => removeWishlistItem(item.bookId)}
+                                  title="Xóa khỏi yêu thích"
+                                  style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: 'none',
+                                    border: '1px solid #fecaca',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    color: '#ef4444',
+                                    transition: 'all 0.15s ease',
+                                    flexShrink: 0,
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = '#fef2f2';
+                                    e.currentTarget.style.borderColor = '#f87171';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'none';
+                                    e.currentTarget.style.borderColor = '#fecaca';
+                                  }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Animation */}
+                <style>{`
+                  @keyframes wishlistSlideIn {
+                    from {
+                      opacity: 0;
+                      transform: translateY(-8px) scale(0.97);
+                    }
+                    to {
+                      opacity: 1;
+                      transform: translateY(0) scale(1);
+                    }
+                  }
+                `}</style>
+              </div>
               <Link href="/cart" className="relative transition-colors hover:text-black">
                 <ShoppingCart size={20} />
                 <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[10px] text-white">
