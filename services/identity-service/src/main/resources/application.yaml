@@ -43,7 +43,7 @@ aws:
     key: ${AWS_SECRET_KEY}
   region: ${AWS_REGION:ap-southeast-1}
   s3:
-    bucket: ${AWS_S3_BUCKET}
+    bucket: ${AWS_S3_BUCKET:book-images-n12}
 
 server:
   port: 8080

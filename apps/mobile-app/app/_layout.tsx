@@ -11,6 +11,7 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthProvider, useAuth } from "@/src/auth/context";
+import { WishlistProvider } from "@/src/wishlist/context";
 
 const RootLayoutContent = () => {
   const colorScheme = useColorScheme();
@@ -43,6 +44,10 @@ const RootLayoutContent = () => {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="book/[id]"
+          options={{ headerShown: false, animation: "slide_from_right" }}
+        />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
         <Stack.Screen
           name="profile/change-password"
@@ -61,7 +66,9 @@ const RootLayoutContent = () => {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutContent />
+      <WishlistProvider>
+        <RootLayoutContent />
+      </WishlistProvider>
     </AuthProvider>
   );
 }

@@ -36,4 +36,4 @@ aws:
   secret:
     key: ${AWS_SECRET_KEY}
   s3:
-    bucket: ${AWS_S3_BUCKET:bms.image}
+    bucket: ${AWS_S3_BUCKET:book-images-n12}
