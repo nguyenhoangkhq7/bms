@@ -14,6 +14,7 @@ import { reviewService } from '@/src/api/reviewService';
 import { useAuth } from '@/src/auth/context';
 import { uploadService } from '@/src/api/uploadService';
 import { orderService } from '@/src/api/orderService';
+import { useWishlist } from '@/src/wishlist/context';
 
 
 export default function DetailPage() {
@@ -35,6 +36,7 @@ export default function DetailPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { addToCart, loading: addToCartLoading } = useAddToCart();
   const [hasPurchased, setHasPurchased] = useState(false);
+  const { toggleItem: toggleWishlist, isInWishlist } = useWishlist();
 
   // Edit review state
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
@@ -640,14 +642,25 @@ export default function DetailPage() {
               </button>
 
               <button
-                onClick={() => setIsWishlisted(!isWishlisted)}
+                onClick={() => {
+                  if (book) {
+                    toggleWishlist({
+                      bookId: book.id,
+                      title: book.title,
+                      author: book.author,
+                      price: book.price,
+                      imageUrl: book.imageUrl,
+                      addedAt: new Date().toISOString(),
+                    });
+                  }
+                }}
                 style={{
                   width: '52px', height: '52px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: '2px solid',
-                  borderColor: isWishlisted ? '#ef4444' : '#e5e7eb',
+                  borderColor: isInWishlist(book.id) ? '#ef4444' : '#e5e7eb',
                   borderRadius: '12px',
-                  background: isWishlisted ? '#fef2f2' : '#fff',
+                  background: isInWishlist(book.id) ? '#fef2f2' : '#fff',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   flexShrink: 0
@@ -655,8 +668,8 @@ export default function DetailPage() {
               >
                 <Heart
                   size={22}
-                  fill={isWishlisted ? '#ef4444' : 'none'}
-                  stroke={isWishlisted ? '#ef4444' : '#9ca3af'}
+                  fill={isInWishlist(book.id) ? '#ef4444' : 'none'}
+                  stroke={isInWishlist(book.id) ? '#ef4444' : '#9ca3af'}
                 />
               </button>
             </div>

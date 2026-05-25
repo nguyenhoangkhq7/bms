@@ -5,6 +5,7 @@ import Header from "@/src/components/Header";
 import Footer from "@/src/components/Footer";
 import { AuthProvider } from "@/src/auth/context";
 import { ChatWidget } from "@/src/ai-chat/components/ChatWidget";
+import { WishlistProvider } from "@/src/wishlist/context";
 
 export const metadata: Metadata = {
   title: "BookHaven – Quản lý sách",
@@ -21,10 +22,12 @@ export default function RootLayout({
       <body className="min-h-screen bg-[#f6f5f3] font-sans text-gray-900 flex flex-col">
         <Toaster position="top-right" />
         <AuthProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <ChatWidget />
+          <WishlistProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <ChatWidget />
+          </WishlistProvider>
         </AuthProvider>
       </body>
     </html>
