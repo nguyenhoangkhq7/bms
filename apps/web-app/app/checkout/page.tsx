@@ -137,13 +137,20 @@ export default function CheckoutPage() {
           const data = JSON.parse(event.data)
           if (data.status === 'PAID') {
             setSseStatus('PAID')
-            setSseMessage('Thành công! Đơn hàng đã được thanh toán.')
+            setSseMessage('Thành công! Đơn hàng đã được thanh toán. Đang chuyển hướng sang chi tiết đơn hàng...')
             toast.success('Thanh toán thành công qua VietQR!')
+            setTimeout(() => {
+              router.push(`/order?orderId=${orderIdParam}`)
+            }, 1500)
           }
         } catch {
           if (event.data && event.data.includes('PAID')) {
             setSseStatus('PAID')
-            setSseMessage('Thành công! Đơn hàng đã được thanh toán.')
+            setSseMessage('Thành công! Đơn hàng đã được thanh toán. Đang chuyển hướng sang chi tiết đơn hàng...')
+            toast.success('Thanh toán thành công qua VietQR!')
+            setTimeout(() => {
+              router.push(`/order?orderId=${orderIdParam}`)
+            }, 1500)
           }
         }
         eventSource.close()
@@ -432,7 +439,7 @@ export default function CheckoutPage() {
       } else {
         toast.success(`Đặt hàng thành công! Mã đơn hàng: #${data.id}`)
         setPreview(data)
-        router.push(`/checkout?status=success&orderId=${data.id}&method=COD`)
+        router.push(`/order?orderId=${data.id}`)
       }
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, 'Quá trình đặt hàng thất bại'))

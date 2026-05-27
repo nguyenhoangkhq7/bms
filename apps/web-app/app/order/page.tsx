@@ -320,6 +320,17 @@ export default function OrdersDashboardPage() {
                         Sản phẩm: {order.items.reduce((sum, item: any) => sum + item.quantity, 0)} cuốn sách
                       </div>
                     )}
+
+                    {order.paymentStatus && (
+                      <div className="mt-2 flex items-center justify-between text-xs border-t border-slate-100/60 pt-2">
+                        <span className="text-slate-400">Thanh toán:</span>
+                        <span className={`font-bold ${
+                          order.paymentStatus.includes('ĐÃ') ? 'text-emerald-600' : 'text-rose-600'
+                        }`}>
+                          {order.paymentStatus}
+                        </span>
+                      </div>
+                    )}
                   </button>
                 )
               })}

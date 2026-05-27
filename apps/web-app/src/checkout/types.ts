@@ -43,6 +43,7 @@ export interface CheckoutResponse extends CheckoutPreviewResponse {
   id: number;
   userId: number;
   status: string;
+  paymentStatus?: string;
   orderDate?: string;
   shippingAddress?: string;
   checkoutUrl?: string;

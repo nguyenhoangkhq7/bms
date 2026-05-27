@@ -25,6 +25,9 @@ public class OrderService {
     @Autowired(required = false)
     private PayOSPaymentStrategy payOSPaymentStrategy;
 
+    @Autowired(required = false)
+    private fit.iuh.order.module.repository.PaymentTransactionRepository paymentTransactionRepository;
+
     private final OrderRepository orderRepository;
     private final StockCheckHandler stockCheckHandler;
     private final VoucherCheckHandler voucherCheckHandler;
@@ -173,6 +176,26 @@ public class OrderService {
     }
 
     private OrderResponse mapToResponse(Order order) {
+        String paymentStatus = "CHƯA THANH TOÁN"; // default
+        if (paymentTransactionRepository != null) {
+            var txOpt = paymentTransactionRepository.findById(order.getId());
+            if (txOpt.isPresent()) {
+                var statusStr = txOpt.get().getStatus().name();
+                if ("PAID".equalsIgnoreCase(statusStr)) {
+                    paymentStatus = "ĐÃ THANH TOÁN (VietQR)";
+                } else {
+                    paymentStatus = "CHƯA THANH TOÁN (VietQR)";
+                }
+            } else {
+                // Đơn hàng COD
+                if (order.getStatus() == OrderStatus.COMPLETED) {
+                    paymentStatus = "ĐÃ THANH TOÁN (COD)";
+                } else {
+                    paymentStatus = "CHƯA THANH TOÁN (COD)";
+                }
+            }
+        }
+
         return OrderResponse.builder()
                 .id(order.getId())
                 .userId(order.getUserId())
@@ -184,6 +207,7 @@ public class OrderService {
             .orderDiscount(order.getOrderDiscount())
             .finalTotal(order.getFinalTotal())
                 .status(order.getStatus().name())
+                .paymentStatus(paymentStatus)
                 .items(order.getItems().stream().map(item -> OrderItemResponse.builder()
                         .id(item.getId())
                         .bookId(item.getBookId())
