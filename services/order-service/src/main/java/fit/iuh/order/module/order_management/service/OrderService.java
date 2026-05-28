@@ -227,6 +227,7 @@ public class OrderService {
             .finalTotal(order.getFinalTotal())
                 .status(order.getStatus().name())
                 .paymentStatus(paymentStatus)
+                .shippingAddress(order.getShippingAddress())
                 .items(order.getItems().stream().map(item -> OrderItemResponse.builder()
                         .id(item.getId())
                         .bookId(item.getBookId())

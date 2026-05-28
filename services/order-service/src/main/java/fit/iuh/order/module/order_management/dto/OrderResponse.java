@@ -28,4 +28,5 @@ public class OrderResponse {
     private String checkoutUrl;
     private String qrCode;
     private String paymentStatus;
+    private String shippingAddress;
 }
