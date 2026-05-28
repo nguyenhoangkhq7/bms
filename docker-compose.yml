@@ -95,6 +95,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+      redis:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -107,6 +109,8 @@ services:
       - PAYOS_API_KEY=${PAYOS_API_KEY}
       - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
       - SPRING_RABBITMQ_HOST=rabbitmq
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - bookstore-network
 
@@ -217,6 +221,15 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - bookstore-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: bookstore-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
     networks:
       - bookstore-network
 
