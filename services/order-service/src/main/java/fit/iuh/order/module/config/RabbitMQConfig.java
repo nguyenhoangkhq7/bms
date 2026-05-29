@@ -28,7 +28,9 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding paymentSettledBinding(Queue queue, TopicExchange exchange) {
+    public Binding paymentSettledBinding(
+            @org.springframework.beans.factory.annotation.Qualifier("paymentSettledQueue") Queue queue, 
+            TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY);
     }
 

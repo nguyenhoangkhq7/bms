@@ -38,5 +38,6 @@ public class Voucher {
 
     private String description; // AI sẽ dùng trường này để hiểu mục đích voucher
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean isDeleted = false; // Hỗ trợ xóa mềm voucher
 }
