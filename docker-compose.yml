@@ -63,6 +63,10 @@ services:
     image: ${PRODUCT_SERVICE_IMAGE:-product-service:latest}
     container_name: product-service
     restart: on-failure
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/app/.env:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,7 +82,8 @@ services:
       - AWS_SECRET_KEY=${AWS_SECRET_KEY:-local-dev-secret-key}
       - AWS_REGION=${AWS_REGION:-ap-southeast-1}
       - AWS_S3_BUCKET=${AWS_S3_BUCKET:-local-dev-bucket}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - OLLAMA_CHAT_URL=${OLLAMA_CHAT_URL}
+      - OLLAMA_CPU_URL=${OLLAMA_CPU_URL}
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL}
     networks:
       - bookstore-network
@@ -93,6 +98,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -101,6 +110,12 @@ services:
       - ORDER_DB_URL=${ORDER_DB_URL:-jdbc:postgresql://postgres:5432/order_db}
       - ORDER_DB_USER=${ORDER_DB_USER:-order_db}
       - ORDER_DB_PASSWORD=${ORDER_DB_PASSWORD:-order_db}
+      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
+      - PAYOS_API_KEY=${PAYOS_API_KEY}
+      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - bookstore-network
 
@@ -191,21 +206,73 @@ services:
     networks:
       - bookstore-network
 
-  ai-engine:
+  ai-engine-gpu:
     image: ollama/ollama:0.30.0-rc12
-    container_name: bookstore-ai-engine
+    container_name: bookstore-ai-engine-gpu
     restart: unless-stopped
+    gpus: all
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=1
     volumes:
-      - ollama_data:/root/.ollama
+      - ollama_gpu_data:/root/.ollama
+    networks:
+      - bookstore-network
+
+  ai-engine-cpu:
+    image: ollama/ollama:0.30.0-rc12
+    container_name: bookstore-ai-engine-cpu
+    restart: unless-stopped
+    ports:
+      - "11435:11434"
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=2
+    volumes:
+      - ollama_cpu_data:/root/.ollama
+    networks:
+      - bookstore-network
+
+  ollama-pull-model:
+    image: curlimages/curl:latest
+    container_name: ollama-pull-model
+    networks:
+      - bookstore-network
+    depends_on:
+      - ai-engine-gpu
+      - ai-engine-cpu
+    env_file:
+      - .env
+    volumes:
+      - ./scripts/pull-ollama-models.sh:/pull-ollama-models.sh:ro
+    command: >
+      /bin/sh /pull-ollama-models.sh
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: bookstore-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - bookstore-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: bookstore-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
     networks:
       - bookstore-network
 
 volumes:
   postgres_data:
     driver: local
-  ollama_data:
+  ollama_gpu_data:
+  ollama_cpu_data:
 
 networks:
   bookstore-network:
