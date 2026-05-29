@@ -202,6 +202,21 @@ services:
     networks:
       - bookstore-network
 
+  ollama-pull-model:
+    image: curlimages/curl:latest
+    container_name: ollama-pull-model
+    networks:
+      - bookstore-network
+    depends_on:
+      - ai-engine
+    environment:
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-hf.co/doof-ferb/AITeamVN-Vietnamese_Embedding-gguf:Q8_0}
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen2.5:1.5b-instruct}
+    volumes:
+      - ./scripts/pull-ollama-models.sh:/pull-ollama-models.sh:ro
+    command: >
+      /bin/sh /pull-ollama-models.sh
+
 volumes:
   postgres_data:
     driver: local

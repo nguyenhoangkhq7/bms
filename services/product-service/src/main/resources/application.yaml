@@ -20,9 +20,12 @@ spring:
         format_sql: true
 
 ollama:
-  base-url: ${OLLAMA_BASE_URL:http://ai-engine:11434}
-  embedding:
-    model: ${OLLAMA_EMBEDDING_MODEL:granite-embedding-311m-multilingual-r2}
+  ai:
+    base-url: ${OLLAMA_BASE_URL:http://ai-engine:11434}
+    embedding:
+      model: ${OLLAMA_EMBEDDING_MODEL:granite-embedding-311m-multilingual-r2}
+    chat:
+      model: ${OLLAMA_CHAT_MODEL:qwen2.5:1.5b-instruct}
 
 server:
   port: 8082
