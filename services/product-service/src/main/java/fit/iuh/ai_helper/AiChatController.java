@@ -47,6 +47,7 @@ public class AiChatController {
 
     @PostMapping(value = "/api/v1/ai/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(@RequestBody AiStreamRequestDto request) {
+        // Timeout 3 phút cho LLM inference
         SseEmitter emitter = new SseEmitter(180_000L);
 
         String userMessage = request.getUserMessage();
@@ -62,25 +63,31 @@ public class AiChatController {
 
         final String finalSessionId = sessionId;
 
+        // Chạy async trên virtual thread (Java 21)
         Thread.startVirtualThread(() -> {
             try {
+                // 1. Lấy conversation history từ Redis
                 List<OllamaMessageDto> history = memoryService.getHistory(finalSessionId);
 
+                // 2. Gửi sessionId về client sử dụng prefix '2:'
                 emitter.send(SseEmitter.event()
-                    .name("session")
-                    .data(Map.of("sessionId", finalSessionId)));
+                    .data(SseChunk.session(finalSessionId).payload()));
 
+                // 3. Thực hiện RAG Streaming Pipeline
                 StringBuilder fullResponse = new StringBuilder();
                 agentRouterService.routeAndExecuteStreaming(
                     userMessage.trim(),
                     history,
                     (SseChunk chunk) -> {
                         try {
+                            // Viết trực tiếp chunk thô đã chứa prefix (0:, 8:, e:) về client
                             emitter.send(SseEmitter.event()
-                                .name(chunk.type())
                                 .data(chunk.payload()));
-                            if ("text".equals(chunk.type())) {
-                                fullResponse.append(chunk.payload());
+                            
+                            // Trích xuất text (prefix '0:') lưu vào lịch sử chat
+                            if (chunk.payload().startsWith("0:")) {
+                                String cleanToken = chunk.payload().substring(2);
+                                fullResponse.append(cleanToken);
                             }
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
@@ -88,13 +95,12 @@ public class AiChatController {
                     }
                 );
 
+                // 4. Lưu hội thoại vào Redis
                 memoryService.append(finalSessionId, userMessage.trim(), fullResponse.toString());
-
-                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
 
             } catch (Exception e) {
-                sendErrorAndComplete(emitter, "Lỗi xử lý: " + e.getMessage());
+                sendErrorAndComplete(emitter, "Lỗi hệ thống: " + e.getMessage());
             }
         });
 
@@ -106,9 +112,8 @@ public class AiChatController {
 
     private void sendErrorAndComplete(SseEmitter emitter, String message) {
         try {
-            emitter.send(SseEmitter.event().name("error").data(Map.of("error", message)));
+            emitter.send(SseEmitter.event().data(SseChunk.error(message).payload()));
             emitter.complete();
         } catch (IOException ignored) {}
     }
 }
-

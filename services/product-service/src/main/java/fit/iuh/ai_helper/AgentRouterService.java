@@ -28,6 +28,9 @@ public class AgentRouterService {
     private final HybridSearchService bookSearchService; // "Tool" cứng để lục lọi DB sách
     private final RestClient restClient;
     private final OllamaAIProperties properties;
+    private final QueryRouterService queryRouter;
+    private final CrossEncoderRerankerService crossReranker;
+    private final LlmAsAJudgeService judgeService;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -35,12 +38,18 @@ public class AgentRouterService {
                               LlmIntentAnalyzer llmAnalyzer,
                               HybridSearchService bookSearchService,
                               @Qualifier("chatRestClient") RestClient restClient,
-                              OllamaAIProperties properties) {
+                              OllamaAIProperties properties,
+                              QueryRouterService queryRouter,
+                              CrossEncoderRerankerService crossReranker,
+                              LlmAsAJudgeService judgeService) {
         this.ruleDetector = ruleDetector;
         this.llmAnalyzer = llmAnalyzer;
         this.bookSearchService = bookSearchService;
         this.restClient = restClient;
         this.properties = properties;
+        this.queryRouter = queryRouter;
+        this.crossReranker = crossReranker;
+        this.judgeService = judgeService;
     }
 
     /**
@@ -50,61 +59,70 @@ public class AgentRouterService {
     public String routeAndExecute(String userMessage) {
         StopWatch sw = new StopWatch("RAG Agent Profiler");
 
-        sw.start("0. Intent Detection (Rule + LLM)");
-        IntentResponseDto extraction = resolveIntentResponse(userMessage);
+        // ─── BƯỚC 1: ADAPTIVE ROUTING ───
+        sw.start("1. Adaptive Routing");
+        RoutingResultDto route = queryRouter.routeQuery(userMessage);
         sw.stop();
 
-        String systemPrompt = buildBaseSystemPrompt(extraction);
+        boolean isDeepPath = "DEEP".equalsIgnoreCase(route.routingPath());
+        List<SemanticBookSearchDTO> finalBooks = List.of();
 
-        if (Intent.BOOK_SEARCH.name().equalsIgnoreCase(extraction.getIntent())) {
-            String cleanedKeyword = safeKeyword(extraction.getKeyword(), userMessage);
-            BigDecimal maxPrice = extraction.getMaxPrice();
-            List<SemanticBookSearchDTO> books;
+        // Định tuyến an toàn tuyệt đối (Fail-safe): Kiểm tra intent của router hoặc dùng rule detector bổ trợ
+        String intentStr = route.intent() != null ? route.intent().toUpperCase() : "";
+        boolean isBookSearch = intentStr.contains("TIM_SACH") 
+                            || intentStr.contains("BOOK_SEARCH") 
+                            || intentStr.contains("SACH") 
+                            || intentStr.contains("BOOK")
+                            || ruleDetector.detect(userMessage).filter(i -> i == Intent.BOOK_SEARCH).isPresent();
 
-            try {
-                sw.start("1. Call Embedding API");
-                float[] queryEmbedding = bookSearchService.generateQueryEmbedding(cleanedKeyword);
-                sw.stop();
-
-                sw.start("2. Execute Postgres Hybrid Search");
-                books = bookSearchService.searchByVector(
-                    bookSearchService.toVectorLiteral(queryEmbedding),
-                    cleanedKeyword,
-                    5,
-                    0,
-                    null,
-                    null,
-                    maxPrice
-                );
-                sw.stop();
-            } catch (Exception exception) {
-                if (sw.isRunning()) {
-                    sw.stop();
-                }
-                System.out.println("Embedding/Hybrid search failed, fallback to text search: " + exception.getMessage());
-
-                sw.start("2. Execute Postgres Hybrid Search");
-                books = bookSearchService.searchByText(
-                    cleanedKeyword,
-                    5,
-                    0,
-                    null,
-                    null,
-                    maxPrice
-                );
-                sw.stop();
+        if (isBookSearch) {
+            // Lấy từ khóa chính thức từ router, fallback làm sạch từ khóa nếu trống
+            String searchKeyword;
+            if (route.extractedKeywords() != null && !route.extractedKeywords().isEmpty()) {
+                searchKeyword = String.join(" ", route.extractedKeywords());
+            } else {
+                searchKeyword = safeKeyword(null, userMessage);
             }
 
-            sw.start("3. Convert Entity to DTO and String Text");
-            String textContext = buildBookContext(books);
-            systemPrompt = buildRagPrompt(extraction, textContext);
+            // ─── BƯỚC 2: RETRIEVAL (Lấy Top 30 sách) ───
+            sw.start("2. Database Retrieval");
+            List<SemanticBookSearchDTO> rawCandidates;
+            try {
+                float[] queryEmbedding = bookSearchService.generateQueryEmbedding(searchKeyword);
+                rawCandidates = bookSearchService.searchByVector(
+                    bookSearchService.toVectorLiteral(queryEmbedding),
+                    searchKeyword, 30, 0, null, null, null
+                );
+            } catch (Exception e) {
+                rawCandidates = bookSearchService.searchByText(searchKeyword, 30, 0, null, null, null);
+            }
             sw.stop();
-        } else if (Intent.ORDER_CHECKING.name().equalsIgnoreCase(extraction.getIntent())) {
-            systemPrompt = buildOrderCheckingPrompt(extraction);
+
+            // ─── BƯỚC 3: MULTI-STAGE RE-RANKING ───
+            if (!rawCandidates.isEmpty()) {
+                if (!isDeepPath) {
+                    // FAST_PATH: Chạy Cross-Encoder lấy Top 5
+                    sw.start("3a. Fast Cross-Encoder Reranking");
+                    finalBooks = crossReranker.rerank(searchKeyword, rawCandidates, 5);
+                    sw.stop();
+                } else {
+                    // DEEP_PATH: Cross-Encoder (Top 10) + LLM-as-a-Judge (Top 3)
+                    sw.start("3b. Deep Multi-stage Reranking");
+                    List<SemanticBookSearchDTO> top10 = crossReranker.rerank(searchKeyword, rawCandidates, 10);
+                    finalBooks = judgeService.evaluateAndFilter(userMessage, top10);
+                    sw.stop();
+                }
+            }
         }
 
-        sw.start("4. Call Chat API");
-        String result = generateFinalResponse(systemPrompt, userMessage);
+        // ─── BƯỚC 4: CHAT GENERATION ───
+        sw.start("4. Convert Context and Call Chat API");
+        String textContext = buildBookContext(finalBooks);
+        String finalSystemPrompt = buildRagPrompt(
+            new IntentResponseDto(route.intent(), (route.extractedKeywords() != null ? String.join(", ", route.extractedKeywords()) : null), null), 
+            textContext
+        );
+        String result = generateFinalResponse(finalSystemPrompt, userMessage);
         sw.stop();
 
         System.out.println("\n" + sw.prettyPrint());
@@ -305,58 +323,96 @@ public class AgentRouterService {
     public void routeAndExecuteStreaming(String userMessage,
                                           List<OllamaMessageDto> history,
                                           Consumer<SseChunk> onChunk) {
-        StopWatch sw = new StopWatch("RAG Streaming Profiler");
+        StopWatch sw = new StopWatch("RAG Adaptive Streaming Profiler");
 
-        // ─── Step 0: Intent Detection ───
-        sw.start("0. Intent Detection");
-        onChunk.accept(SseChunk.thinking("Đang phân tích câu hỏi..."));
-        IntentResponseDto extraction = resolveIntentResponse(userMessage);
+        // ─── BƯỚC 1: ADAPTIVE ROUTING ───
+        sw.start("1. Adaptive Routing");
+        onChunk.accept(SseChunk.thinking("⚡ Đang định tuyến câu hỏi bằng AI... "));
+        RoutingResultDto route = queryRouter.routeQuery(userMessage);
         sw.stop();
 
-        String systemPrompt = buildBaseSystemPrompt(extraction);
-        List<SemanticBookSearchDTO> foundBooks = List.of();
+        boolean isDeepPath = "DEEP".equalsIgnoreCase(route.routingPath());
+        onChunk.accept(SseChunk.thinking("Định tuyến: " + (isDeepPath ? "DEEP_PATH 🔍" : "FAST_PATH ⚡") + "\n"));
 
-        if (Intent.BOOK_SEARCH.name().equalsIgnoreCase(extraction.getIntent())) {
-            String cleanedKeyword = safeKeyword(extraction.getKeyword(), userMessage);
-            BigDecimal maxPrice = extraction.getMaxPrice();
+        List<SemanticBookSearchDTO> finalBooks = List.of();
 
-            // ─── Step 1+2: Embed + Search ───
-            onChunk.accept(SseChunk.thinking("Đang tìm kiếm sách..."));
-            sw.start("1+2. Hybrid Search");
+        // Định tuyến an toàn tuyệt đối (Fail-safe): Kiểm tra intent của router hoặc dùng rule detector bổ trợ
+        String intentStr = route.intent() != null ? route.intent().toUpperCase() : "";
+        boolean isBookSearch = intentStr.contains("TIM_SACH") 
+                            || intentStr.contains("BOOK_SEARCH") 
+                            || intentStr.contains("SACH") 
+                            || intentStr.contains("BOOK")
+                            || ruleDetector.detect(userMessage).filter(i -> i == Intent.BOOK_SEARCH).isPresent();
+
+        if (isBookSearch) {
+            // Lấy từ khóa chính thức từ router, fallback làm sạch từ khóa nếu trống
+            String searchKeyword;
+            if (route.extractedKeywords() != null && !route.extractedKeywords().isEmpty()) {
+                searchKeyword = String.join(" ", route.extractedKeywords());
+            } else {
+                searchKeyword = safeKeyword(null, userMessage);
+            }
+
+            // ─── BƯỚC 2: RETRIEVAL (Lấy Top 30 sách) ───
+            onChunk.accept(SseChunk.thinking("📖 Đang tìm kiếm các sách liên quan trong kho...\n"));
+            sw.start("2. Database Retrieval");
+            List<SemanticBookSearchDTO> rawCandidates;
             try {
-                float[] queryEmbedding = bookSearchService.generateQueryEmbedding(cleanedKeyword);
-                foundBooks = bookSearchService.searchByVector(
+                float[] queryEmbedding = bookSearchService.generateQueryEmbedding(searchKeyword);
+                // Truy vấn Top 30 cuốn sách ứng viên để đưa vào xếp hạng
+                rawCandidates = bookSearchService.searchByVector(
                     bookSearchService.toVectorLiteral(queryEmbedding),
-                    cleanedKeyword, 5, 0, null, null, maxPrice
+                    searchKeyword, 30, 0, null, null, null
                 );
             } catch (Exception e) {
-                foundBooks = bookSearchService.searchByText(
-                    cleanedKeyword, 5, 0, null, null, maxPrice
-                );
+                rawCandidates = bookSearchService.searchByText(searchKeyword, 30, 0, null, null, null);
             }
             sw.stop();
 
-            // ─── Step 2.5: Gửi BookCards qua Generative UI ───
-            if (!foundBooks.isEmpty()) {
-                List<Map<String, Object>> bookCards = foundBooks.stream()
-                    .map(this::toBookCard)
-                    .toList();
-                onChunk.accept(SseChunk.bookCards(bookCards));
+            // ─── BƯỚC 3: MULTI-STAGE RE-RANKING ───
+            if (!rawCandidates.isEmpty()) {
+                if (!isDeepPath) {
+                    // FAST_PATH: Chạy Cross-Encoder lấy Top 5
+                    sw.start("3a. Fast Cross-Encoder Reranking");
+                    onChunk.accept(SseChunk.thinking("✨ Đang xếp hạng nhanh bằng Cross-Encoder...\n"));
+                    finalBooks = crossReranker.rerank(searchKeyword, rawCandidates, 5);
+                    sw.stop();
+                } else {
+                    // DEEP_PATH: Cross-Encoder (Top 10) + LLM-as-a-Judge (Top 3)
+                    sw.start("3b. Deep Multi-stage Reranking");
+                    onChunk.accept(SseChunk.thinking("✨ Đang xếp hạng sơ bộ bằng Cross-Encoder...\n"));
+                    List<SemanticBookSearchDTO> top10 = crossReranker.rerank(searchKeyword, rawCandidates, 10);
+                    
+                    onChunk.accept(SseChunk.thinking("🤖 Trọng tài AI đang đối chiếu logic sâu các ứng cử viên...\n"));
+                    finalBooks = judgeService.evaluateAndFilter(userMessage, top10);
+                    sw.stop();
+                }
             }
 
-            sw.start("3. Build Context");
-            String textContext = buildBookContext(foundBooks);
-            systemPrompt = buildRagPrompt(extraction, textContext);
-            sw.stop();
-        } else if (Intent.ORDER_CHECKING.name().equalsIgnoreCase(extraction.getIntent())) {
-            systemPrompt = buildOrderCheckingPrompt(extraction);
+            // Gửi dữ liệu Card sách qua UI (Prefix: 8:)
+            if (!finalBooks.isEmpty()) {
+                try {
+                    List<Map<String, Object>> bookCards = finalBooks.stream()
+                        .map(this::toBookCard)
+                        .toList();
+                    String jsonCards = objectMapper.writeValueAsString(bookCards);
+                    onChunk.accept(SseChunk.bookCards(jsonCards));
+                } catch (Exception ignored) {}
+            }
         }
 
-        // ─── Step 4: Streaming Chat ───
-        sw.start("4. Streaming Chat");
-        streamChatResponse(systemPrompt, userMessage, history, onChunk);
+        // ─── BƯỚC 4: STREAMING CHAT (Prefix: 0:) ───
+        sw.start("4. Streaming Chat response");
+        String textContext = buildBookContext(finalBooks);
+        String finalSystemPrompt = buildRagPrompt(
+            new IntentResponseDto(route.intent(), (route.extractedKeywords() != null ? String.join(", ", route.extractedKeywords()) : null), null), 
+            textContext
+        );
+        streamChatResponse(finalSystemPrompt, userMessage, history, onChunk);
         sw.stop();
 
+        // ─── BƯỚC 5: END OF STREAM (Prefix: e:) ───
+        onChunk.accept(SseChunk.endStream("{\"finishReason\":\"stop\",\"tookSeconds\":" + sw.getTotalTimeSeconds() + "}"));
         System.out.println("\n" + sw.prettyPrint());
     }
 

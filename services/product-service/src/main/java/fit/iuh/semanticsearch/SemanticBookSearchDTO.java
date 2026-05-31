@@ -19,4 +19,10 @@ public record SemanticBookSearchDTO(
     Long parentCategoryId,
     Double combinedScore
 ) {
+    public SemanticBookSearchDTO withCombinedScore(Double newScore) {
+        return new SemanticBookSearchDTO(
+            id, title, author, publisher, price, stockQuantity, status,
+            categoryId, imageUrl, description, categoryName, parentCategoryId, newScore
+        );
+    }
 }

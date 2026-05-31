@@ -272,11 +272,24 @@ services:
     networks:
       - bookstore-network
 
+  reranker-service:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
+    container_name: reranker-service
+    restart: unless-stopped
+    ports:
+      - "8085:80"
+    volumes:
+      - reranker_data:/data
+    command: --model-id BAAI/bge-reranker-v2-m3
+    networks:
+      - bookstore-network
+
 volumes:
   postgres_data:
     driver: local
   ollama_gpu_data:
   ollama_cpu_data:
+  reranker_data:
 
 networks:
   bookstore-network:
