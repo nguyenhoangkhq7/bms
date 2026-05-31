@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/src/auth/context'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
-import { getOrders, cancelOrder } from '@/src/api/checkoutService'
+import { getOrders, cancelOrder, changeOrderPaymentMethod } from '@/src/api/checkoutService'
 import { bookService } from '@/src/api/bookService'
 import type { CheckoutResponse } from '@/src/checkout/types'
 import { reviewService } from '@/src/api/reviewService'
@@ -174,6 +174,37 @@ export default function OrdersDashboardPage() {
         })
     })
   }, [selectedOrder, booksCache, loadingBooks])
+
+  // --- CHUYỂN ĐỔI PHƯƠNG THỨC THANH TOÁN ---
+  async function handleSwitchPaymentMethod(method: 'PAYOS' | 'COD') {
+    if (!selectedOrderId) return
+    setActionLoading(true)
+    try {
+      const returnUrl = `http://localhost:3000/checkout?status=success&orderId=${selectedOrderId}`
+      const cancelUrl = `http://localhost:3000/order?orderId=${selectedOrderId}`
+      const updatedOrder = await changeOrderPaymentMethod(selectedOrderId, method, returnUrl, cancelUrl)
+      
+      toast.success(
+        method === 'PAYOS' 
+          ? 'Đã cập nhật cổng thanh toán VietQR! Đang chuyển hướng...' 
+          : 'Đã chuyển đổi sang phương thức thanh toán COD thành công!'
+      )
+      
+      // Nếu chọn PAYOS và có checkoutUrl, mở luôn trang thanh toán VietQR
+      if (method === 'PAYOS' && updatedOrder.checkoutUrl) {
+        window.open(updatedOrder.checkoutUrl, '_blank')
+      }
+
+      await loadOrders(true) // Tải lại danh sách đơn hàng ngầm để update UI
+    } catch (error: unknown) {
+      const msg = typeof error === 'object' && error !== null && 'message' in error
+        ? (error as { message: string }).message
+        : 'Chuyển đổi phương thức thanh toán thất bại'
+      toast.error(msg)
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   // --- HỦY ĐƠN HÀNG ---
   async function handleCancelOrder(id: number) {
@@ -541,6 +572,50 @@ export default function OrdersDashboardPage() {
                             </p>
                           </div>
                         </div>
+
+                        {/* Thay đổi Phương thức thanh toán hoặc Thanh toán tiếp */}
+                        {!selectedOrder.paymentStatus?.includes('ĐÃ') && currentStatus === 'PENDING' && (
+                          <div className="mt-2 pt-2 border-t border-slate-100/60 space-y-2">
+                            <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#a28354] block">Hành động thanh toán</span>
+                            <div className="flex flex-col gap-1.5">
+                              {selectedOrder.paymentStatus?.includes('VietQR') ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (selectedOrder.checkoutUrl) {
+                                        window.open(selectedOrder.checkoutUrl, '_blank')
+                                      } else {
+                                        handleSwitchPaymentMethod('PAYOS')
+                                      }
+                                    }}
+                                    disabled={actionLoading}
+                                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-white transition active:scale-[0.98] border border-amber-500 shadow-sm"
+                                  >
+                                    <CreditCard size={12} /> Mở link thanh toán VietQR
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('COD')}
+                                    disabled={actionLoading}
+                                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition active:scale-[0.98]"
+                                  >
+                                    Đổi sang thanh toán COD (Tiền mặt)
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSwitchPaymentMethod('PAYOS')}
+                                  disabled={actionLoading}
+                                  className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-amber-700 transition active:scale-[0.98] shadow-sm"
+                                >
+                                  <CreditCard size={12} /> Đổi sang Chuyển khoản VietQR
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Trạng thái & Hủy đơn */}
