@@ -35,6 +35,10 @@ public class PaymentTransaction {
     @Column(nullable = false)
     private PaymentStatus status;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isDeleted = false;
+
     @Transient
     private PaymentStrategy strategy;
 

@@ -50,9 +50,9 @@ public class PaymentReconciliationScheduler {
     public void reconcilePayments() {
         log.info("Starting automatic payment reconciliation scheduler job...");
         
-        // Find stuck orders: PENDING and created > 15 minutes ago
+        // Find stuck orders: AWAITING_PAYMENT and created > 15 minutes ago
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(15);
-        List<OrderReadView> stuckOrders = orderReadViewRepository.findByStatusAndCreatedAtBefore("PENDING", cutoff);
+        List<OrderReadView> stuckOrders = orderReadViewRepository.findByStatusAndCreatedAtBefore("AWAITING_PAYMENT", cutoff);
         
         log.info("Found {} stuck pending orders to check.", stuckOrders.size());
         
@@ -61,8 +61,8 @@ public class PaymentReconciliationScheduler {
             try {
                 Long orderId = Long.parseLong(orderIdStr);
                 
-                // Check if it is a PayOS order (has a transaction in paymentTransactionRepository)
-                boolean isPayOS = paymentTransactionRepository.existsById(orderId);
+                // Check if it is a PayOS order (has an active transaction in paymentTransactionRepository)
+                boolean isPayOS = paymentTransactionRepository.existsByIdAndIsDeletedFalse(orderId);
                 
                 if (isPayOS) {
                     log.info("Reconciling PayOS payment for stuck Order ID: {}", orderId);
@@ -75,7 +75,7 @@ public class PaymentReconciliationScheduler {
                         orderEventSourcedService.settlePayment(orderIdStr, "RECONCILED-" + System.currentTimeMillis());
                         
                         // 2. Update JPA transaction
-                        PaymentTransaction transaction = paymentTransactionRepository.findById(orderId).orElse(null);
+                        PaymentTransaction transaction = paymentTransactionRepository.findByIdAndIsDeletedFalse(orderId).orElse(null);
                         if (transaction != null) {
                             transaction.setStatus(PaymentStatus.PAID);
                             paymentTransactionRepository.save(transaction);

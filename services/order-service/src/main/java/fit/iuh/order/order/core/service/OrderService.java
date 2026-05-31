@@ -89,6 +89,21 @@ public class OrderService {
 
         // Tự động tạo link thanh toán PayOS VietQR nếu phương thức là PAYOS
         if ("PAYOS".equalsIgnoreCase(request.getPaymentMethod()) && payOSPaymentStrategy != null) {
+            // Set trạng thái đơn hàng là AWAITING_PAYMENT (Chờ thanh toán)
+            savedOrder.setStatus(OrderStatus.AWAITING_PAYMENT);
+            savedOrder = orderRepository.save(savedOrder);
+
+            // Lưu giao dịch online vào bảng payment_transactions với trạng thái UNPAID
+            if (paymentTransactionRepository != null) {
+                PaymentTransaction transaction = new PaymentTransaction();
+                transaction.setId(savedOrder.getId());
+                transaction.setOrderId(savedOrder.getId());
+                transaction.setAmount(savedOrder.getFinalTotal());
+                transaction.setStatus(fit.iuh.order.order.core.model.PaymentStatus.UNPAID);
+                transaction.setIsDeleted(false);
+                paymentTransactionRepository.save(transaction);
+            }
+
             try {
                 String returnUrl = request.getReturnUrl();
                 if (returnUrl == null || returnUrl.trim().isEmpty()) {
@@ -119,15 +134,10 @@ public class OrderService {
                 System.err.println("Lỗi tự động tạo link thanh toán PayOS VietQR: " + e.getMessage());
             }
         } else {
-            // Thanh toán khi nhận hàng (COD)
-            if (paymentTransactionRepository != null) {
-                PaymentTransaction transaction = new PaymentTransaction();
-                transaction.setId(savedOrder.getId());
-                transaction.setOrderId(savedOrder.getId());
-                transaction.setAmount(savedOrder.getFinalTotal());
-                transaction.setStatus(fit.iuh.order.order.core.model.PaymentStatus.CASH_ON_DELIVERY);
-                paymentTransactionRepository.save(transaction);
-            }
+            // Thanh toán khi nhận hàng (COD) -> Order status là PENDING (Chờ xử lý)
+            savedOrder.setStatus(OrderStatus.PENDING);
+            savedOrder = orderRepository.save(savedOrder);
+            // Không lưu bất kỳ giao dịch nào vào bảng payment_transactions
         }
 
         OrderResponse response = mapToResponse(savedOrder);
@@ -229,18 +239,15 @@ public class OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với ID: " + id));
 
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Chỉ được đổi phương thức thanh toán khi đơn hàng đang ở trạng thái Chờ xử lý (PENDING)");
+        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.AWAITING_PAYMENT) {
+            throw new IllegalStateException("Chỉ được đổi phương thức thanh toán khi đơn hàng đang ở trạng thái Chờ xử lý (PENDING) hoặc Chờ thanh toán (AWAITING_PAYMENT)");
         }
 
-        // Đơn hàng thanh toán COD thì không cho chuyển phương thức thanh toán
+        // Đơn hàng thanh toán COD (không có giao dịch online trong database) thì không cho chuyển phương thức thanh toán
         if (paymentTransactionRepository != null) {
-            var txOpt = paymentTransactionRepository.findById(order.getId());
-            if (txOpt.isPresent()) {
-                var tx = txOpt.get();
-                if (tx.getStatus() == fit.iuh.order.order.core.model.PaymentStatus.CASH_ON_DELIVERY) {
-                    throw new IllegalStateException("Đơn hàng thanh toán khi nhận hàng (COD) không được phép thay đổi phương thức thanh toán!");
-                }
+            var txOpt = paymentTransactionRepository.findByIdAndIsDeletedFalse(order.getId());
+            if (txOpt.isEmpty()) {
+                throw new IllegalStateException("Đơn hàng thanh toán khi nhận hàng (COD) không được phép thay đổi phương thức thanh toán!");
             }
         }
 
@@ -250,13 +257,32 @@ public class OrderService {
         if ("PAYOS".equalsIgnoreCase(paymentMethod)) {
             // Kiểm tra trạng thái hiện tại trước khi đổi sang PAYOS
             if (paymentTransactionRepository != null) {
-                var txOpt = paymentTransactionRepository.findById(order.getId());
+                var txOpt = paymentTransactionRepository.findByIdAndIsDeletedFalse(order.getId());
                 if (txOpt.isPresent()) {
                     var tx = txOpt.get();
                     if (tx.getStatus() == fit.iuh.order.order.core.model.PaymentStatus.PAID) {
                         throw new IllegalStateException("Đơn hàng đã được thanh toán online thành công, không thể thay đổi phương thức!");
                     }
                 }
+            }
+
+            // Set trạng thái đơn hàng là AWAITING_PAYMENT (Chờ thanh toán)
+            order.setStatus(OrderStatus.AWAITING_PAYMENT);
+            orderRepository.save(order);
+
+            // Lưu/Cập nhật giao dịch online vào bảng payment_transactions với trạng thái UNPAID
+            if (paymentTransactionRepository != null) {
+                var txOpt = paymentTransactionRepository.findById(order.getId());
+                PaymentTransaction transaction = txOpt.orElseGet(() -> {
+                    PaymentTransaction newTx = new PaymentTransaction();
+                    newTx.setId(order.getId());
+                    newTx.setOrderId(order.getId());
+                    newTx.setAmount(order.getFinalTotal());
+                    return newTx;
+                });
+                transaction.setStatus(fit.iuh.order.order.core.model.PaymentStatus.UNPAID);
+                transaction.setIsDeleted(false);
+                paymentTransactionRepository.save(transaction);
             }
 
             if (payOSPaymentStrategy != null) {
@@ -292,28 +318,21 @@ public class OrderService {
             }
         } else if ("COD".equalsIgnoreCase(paymentMethod)) {
             if (paymentTransactionRepository != null) {
-                var txOpt = paymentTransactionRepository.findById(order.getId());
+                var txOpt = paymentTransactionRepository.findByIdAndIsDeletedFalse(order.getId());
                 if (txOpt.isPresent()) {
                     var tx = txOpt.get();
                     if (tx.getStatus() == fit.iuh.order.order.core.model.PaymentStatus.PAID) {
                         throw new IllegalStateException("Đơn hàng đã được thanh toán online, không thể chuyển sang thanh toán khi nhận hàng (COD)!");
                     }
-                    if (tx.getStatus() != fit.iuh.order.order.core.model.PaymentStatus.UNPAID) {
-                        throw new IllegalStateException("Chỉ cho phép chuyển sang thanh toán khi nhận hàng (COD) khi trạng thái là chưa thanh toán online!");
-                    }
-                    // Cập nhật trạng thái giao dịch sang CASH_ON_DELIVERY
-                    tx.setStatus(fit.iuh.order.order.core.model.PaymentStatus.CASH_ON_DELIVERY);
+                    // Đánh dấu soft delete giao dịch online cũ vì đã chuyển sang COD (COD không lưu ở bảng payment_transactions)
+                    tx.setIsDeleted(true);
                     paymentTransactionRepository.save(tx);
-                } else {
-                    // Nếu chưa có giao dịch nào, tạo mới với trạng thái CASH_ON_DELIVERY
-                    PaymentTransaction transaction = new PaymentTransaction();
-                    transaction.setId(order.getId());
-                    transaction.setOrderId(order.getId());
-                    transaction.setAmount(order.getFinalTotal());
-                    transaction.setStatus(fit.iuh.order.order.core.model.PaymentStatus.CASH_ON_DELIVERY);
-                    paymentTransactionRepository.save(transaction);
                 }
             }
+
+            // Set trạng thái đơn hàng về PENDING (Chờ xử lý)
+            order.setStatus(OrderStatus.PENDING);
+            orderRepository.save(order);
         }
 
         OrderResponse response = mapToResponse(order);
@@ -330,13 +349,11 @@ public class OrderService {
     private OrderResponse mapToResponse(Order order) {
         String paymentStatus = "CHƯA THANH TOÁN"; // default
         if (paymentTransactionRepository != null) {
-            var txOpt = paymentTransactionRepository.findById(order.getId());
+            var txOpt = paymentTransactionRepository.findByIdAndIsDeletedFalse(order.getId());
             if (txOpt.isPresent()) {
                 var statusStr = txOpt.get().getStatus().name();
                 if ("PAID".equalsIgnoreCase(statusStr)) {
                     paymentStatus = "ĐÃ THANH TOÁN (VietQR)";
-                } else if ("CASH_ON_DELIVERY".equalsIgnoreCase(statusStr)) {
-                    paymentStatus = "THANH TOÁN KHI NHẬN HÀNG (COD)";
                 } else {
                     paymentStatus = "CHƯA THANH TOÁN (VietQR)";
                 }

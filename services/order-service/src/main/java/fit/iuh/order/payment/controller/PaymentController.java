@@ -68,12 +68,13 @@ public class PaymentController {
             Map<String, Object> paymentData = payOSPaymentStrategy.createPaymentLink(order, returnUrl, cancelUrl);
 
             // Lưu trữ hoặc cập nhật Payment Transaction ở trạng thái UNPAID
-            PaymentTransaction transaction = paymentTransactionRepository.findById(orderId)
+            PaymentTransaction transaction = paymentTransactionRepository.findByIdAndIsDeletedFalse(orderId)
                     .orElse(new PaymentTransaction());
             transaction.setId(orderId);
             transaction.setOrderId(orderId);
             transaction.setAmount(order.getFinalTotal());
             transaction.setStatus(PaymentStatus.UNPAID);
+            transaction.setIsDeleted(false);
             paymentTransactionRepository.save(transaction);
 
             return ResponseEntity.ok(new ApiResponse<>("Tạo link thanh toán PayOS VietQR thành công", paymentData));

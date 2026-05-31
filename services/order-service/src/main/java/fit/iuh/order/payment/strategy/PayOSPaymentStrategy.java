@@ -60,6 +60,32 @@ public class PayOSPaymentStrategy implements PaymentStrategy {
     public Map<String, Object> createPaymentLink(Order order, String returnUrl, String cancelUrl) throws Exception {
         long orderCode = order.getId();
         int amount = order.getFinalTotal().intValue();
+
+        // 0. Cố gắng lấy link thanh toán đã tồn tại và còn hiệu lực từ PayOS trước để tránh lỗi trùng lặp orderCode và giữ nguyên 1 giao dịch
+        try {
+            System.out.println("PayOS: Checking if an active payment link already exists for Order #" + orderCode);
+            Map<String, Object> getResponse = webClient.get()
+                    .uri("/v2/payment-requests/" + orderCode)
+                    .header("x-client-id", clientId)
+                    .header("x-api-key", apiKey)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            System.out.println("PayOS GET raw response: " + getResponse);
+            if (getResponse != null && "00".equals(getResponse.get("code"))) {
+                Map<String, Object> data = (Map<String, Object>) getResponse.get("data");
+                if (data != null) {
+                    System.out.println("PayOS GET data fields: " + data);
+                    if ("PENDING".equalsIgnoreCase((String) data.get("status"))) {
+                        System.out.println("PayOS: Found existing active payment link for Order #" + orderCode + ", reusing it. checkoutUrl = " + data.get("checkoutUrl"));
+                        return data;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("PayOS: No existing active payment request found for Order #" + orderCode + ", generating a new one. Details: " + e.getMessage());
+        }
         
         // Mô tả giao dịch (tối đa 25 ký tự theo tài liệu PayOS để tránh lỗi)
         String description = "Thanh toan don hang #" + orderCode;

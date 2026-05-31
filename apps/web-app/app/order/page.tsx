@@ -180,8 +180,8 @@ export default function OrdersDashboardPage() {
     if (!selectedOrderId) return
     setActionLoading(true)
     try {
-      const returnUrl = `http://localhost:3000/checkout?status=success&orderId=${selectedOrderId}`
-      const cancelUrl = `http://localhost:3000/order?orderId=${selectedOrderId}`
+      const returnUrl = `${window.location.origin}/checkout?status=success&orderId=${selectedOrderId}`
+      const cancelUrl = `${window.location.origin}/order?orderId=${selectedOrderId}`
       const updatedOrder = await changeOrderPaymentMethod(selectedOrderId, method, returnUrl, cancelUrl)
       
       toast.success(
@@ -190,9 +190,9 @@ export default function OrdersDashboardPage() {
           : 'Đã chuyển đổi sang phương thức thanh toán COD thành công!'
       )
       
-      // Nếu chọn PAYOS và có checkoutUrl, mở luôn trang thanh toán VietQR
+      // Nếu chọn PAYOS và có checkoutUrl, chuyển hướng trực tiếp trên cùng một tab để tránh bị trình duyệt chặn pop-up
       if (method === 'PAYOS' && updatedOrder.checkoutUrl) {
-        window.open(updatedOrder.checkoutUrl, '_blank')
+        window.location.href = updatedOrder.checkoutUrl
       }
 
       await loadOrders(true) // Tải lại danh sách đơn hàng ngầm để update UI
@@ -272,6 +272,12 @@ export default function OrdersDashboardPage() {
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
             <AlertCircle size={12} className="animate-pulse" /> Chờ xử lý
+          </span>
+        )
+      case 'AWAITING_PAYMENT':
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-800 border border-violet-200">
+            <AlertCircle size={12} className="animate-pulse" /> Chờ thanh toán
           </span>
         )
       case 'CONFIRMED':
@@ -561,20 +567,20 @@ export default function OrdersDashboardPage() {
                         </h3>
                         <div className="flex items-start gap-3">
                           <div className="mt-0.5 rounded-xl bg-emerald-50 p-2 text-emerald-700 border border-emerald-100 shrink-0 shadow-sm">
-                            {selectedOrder.checkoutUrl ? <CreditCard size={18} /> : <Banknote size={18} />}
+                            {(selectedOrder.checkoutUrl || selectedOrder.paymentStatus?.includes('VietQR')) ? <CreditCard size={18} /> : <Banknote size={18} />}
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-800 leading-none">
-                              {selectedOrder.checkoutUrl ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}
+                              {(selectedOrder.checkoutUrl || selectedOrder.paymentStatus?.includes('VietQR')) ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}
                             </p>
                             <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                              {selectedOrder.checkoutUrl ? 'Hệ thống đối soát & xác nhận tự động qua cổng PayOS' : 'Khách hàng thanh toán tiền mặt trực tiếp cho shipper'}
+                              {(selectedOrder.checkoutUrl || selectedOrder.paymentStatus?.includes('VietQR')) ? 'Hệ thống đối soát & xác nhận tự động qua cổng PayOS' : 'Khách hàng thanh toán tiền mặt trực tiếp cho shipper'}
                             </p>
                           </div>
                         </div>
 
                         {/* Thay đổi Phương thức thanh toán hoặc Thanh toán tiếp */}
-                        {!selectedOrder.paymentStatus?.includes('ĐÃ') && currentStatus === 'PENDING' && (
+                        {!selectedOrder.paymentStatus?.includes('ĐÃ') && (currentStatus === 'PENDING' || currentStatus === 'AWAITING_PAYMENT') && (
                           <div className="mt-2 pt-2 border-t border-slate-100/60 space-y-2">
                             <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#a28354] block">Hành động thanh toán</span>
                             <div className="flex flex-col gap-1.5">
@@ -582,17 +588,11 @@ export default function OrdersDashboardPage() {
                                 <>
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      if (selectedOrder.checkoutUrl) {
-                                        window.open(selectedOrder.checkoutUrl, '_blank')
-                                      } else {
-                                        handleSwitchPaymentMethod('PAYOS')
-                                      }
-                                    }}
+                                    onClick={() => handleSwitchPaymentMethod('PAYOS')}
                                     disabled={actionLoading}
                                     className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-white transition active:scale-[0.98] border border-amber-500 shadow-sm"
                                   >
-                                    <CreditCard size={12} /> Mở link thanh toán VietQR
+                                    <CreditCard size={12} /> Thanh toán lại VietQR
                                   </button>
                                   <button
                                     type="button"
@@ -603,16 +603,26 @@ export default function OrdersDashboardPage() {
                                     Đổi sang thanh toán COD (Tiền mặt)
                                   </button>
                                 </>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSwitchPaymentMethod('PAYOS')}
-                                  disabled={actionLoading}
-                                  className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-amber-700 transition active:scale-[0.98] shadow-sm"
-                                >
-                                  <CreditCard size={12} /> Đổi sang Chuyển khoản VietQR
-                                </button>
-                              )}
+                              ) : !selectedOrder.paymentStatus?.includes('COD') ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('PAYOS')}
+                                    disabled={actionLoading}
+                                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-amber-700 transition active:scale-[0.98] shadow-sm"
+                                  >
+                                    <CreditCard size={12} /> Đổi sang Chuyển khoản VietQR
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('COD')}
+                                    disabled={actionLoading}
+                                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition active:scale-[0.98]"
+                                  >
+                                    Đổi sang thanh toán COD (Tiền mặt)
+                                  </button>
+                                </>
+                              ) : null}
                             </div>
                           </div>
                         )}
@@ -634,7 +644,7 @@ export default function OrdersDashboardPage() {
                           </span>
                         </div>
 
-                        {currentStatus === 'PENDING' && (
+                        {(currentStatus === 'PENDING' || currentStatus === 'AWAITING_PAYMENT') && (
                           <button
                             type="button"
                             onClick={() => handleCancelOrder(selectedOrder.id)}

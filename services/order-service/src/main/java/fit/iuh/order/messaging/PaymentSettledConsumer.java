@@ -55,7 +55,7 @@ public class PaymentSettledConsumer {
                 }
 
                 // 2. Cập nhật Payment Transaction sang trạng thái PAID
-                PaymentTransaction transaction = paymentTransactionRepository.findById(orderId).orElse(null);
+                PaymentTransaction transaction = paymentTransactionRepository.findByIdAndIsDeletedFalse(orderId).orElse(null);
                 if (transaction != null) {
                     transaction.setStatus(PaymentStatus.PAID);
                     paymentTransactionRepository.save(transaction);
@@ -65,6 +65,7 @@ public class PaymentSettledConsumer {
                     newTx.setOrderId(orderId);
                     newTx.setAmount(order.getFinalTotal());
                     newTx.setStatus(PaymentStatus.PAID);
+                    newTx.setIsDeleted(false);
                     paymentTransactionRepository.save(newTx);
                 }
                 System.out.println("RabbitMQ Consumer: Đã cập nhật trạng thái giao dịch thành công (PAID).");
