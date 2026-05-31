@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fit.iuh.order.module.models.StoreInfo;
 import fit.iuh.order.module.shipping.repository.StoreInfoRepository;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-@Component
+@Service
+@Slf4j
 @RequiredArgsConstructor
 public class OpenRouteServiceClient implements RoutingClient {
     private final WebClient.Builder webClientBuilder;
@@ -29,12 +32,16 @@ public class OpenRouteServiceClient implements RoutingClient {
     private Double defaultStoreLng;
 
     @Override
+    @Retry(name = "backendCallRetry", fallbackMethod = "fallbackCalculateDistance")
     public Double calculateDistance(Double destLat, Double destLng) {
+        log.info("Attempting to calculate distance to destination coordinates ({}, {})...", destLat, destLng);
+
         StoreInfo storeInfo = storeInfoRepository.findTopByOrderByIdAsc().orElse(null);
         Double storeLat = storeInfo != null ? storeInfo.getLatitude() : defaultStoreLat;
         Double storeLng = storeInfo != null ? storeInfo.getLongitude() : defaultStoreLng;
 
         if (apiKey == null || apiKey.isBlank()) {
+            log.info("OpenRouteService API key not provided, defaulting directly to Haversine calculation.");
             return haversineKm(storeLat, storeLng, destLat, destLng);
         }
 
@@ -56,6 +63,7 @@ public class OpenRouteServiceClient implements RoutingClient {
             .block();
 
         if (response == null || response.isBlank()) {
+            log.warn("Received empty response from OpenRouteService. Calculating using Haversine algorithm.");
             return haversineKm(storeLat, storeLng, destLat, destLng);
         }
 
@@ -69,8 +77,20 @@ public class OpenRouteServiceClient implements RoutingClient {
                 .asDouble();
             return meters / 1000d;
         } catch (Exception ex) {
+            log.error("Failed to parse distance response. Falling back to Haversine.", ex);
             return haversineKm(storeLat, storeLng, destLat, destLng);
         }
+    }
+
+    public Double fallbackCalculateDistance(Double destLat, Double destLng, Exception ex) {
+        log.error("All retry attempts failed to call OpenRouteService for ({}, {}). Error: {}. Activating safety fallback.",
+            destLat, destLng, ex.getMessage());
+
+        StoreInfo storeInfo = storeInfoRepository.findTopByOrderByIdAsc().orElse(null);
+        Double storeLat = storeInfo != null ? storeInfo.getLatitude() : defaultStoreLat;
+        Double storeLng = storeInfo != null ? storeInfo.getLongitude() : defaultStoreLng;
+
+        return haversineKm(storeLat, storeLng, destLat, destLng);
     }
 
     private double haversineKm(double lat1, double lon1, double lat2, double lon2) {

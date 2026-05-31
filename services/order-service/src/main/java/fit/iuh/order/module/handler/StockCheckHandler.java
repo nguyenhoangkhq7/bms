@@ -8,15 +8,18 @@ import fit.iuh.order.module.exception.NotFoundException;
 import fit.iuh.order.module.order_management.dto.OrderItemRequest;
 import fit.iuh.order.module.order_management.dto.external.BookResponseDTO;
 import fit.iuh.order.module.models.OrderItem;
+import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class StockCheckHandler extends CheckoutHandler {
     private final CartRedisRepository cartRedisRepository;
@@ -24,6 +27,14 @@ public class StockCheckHandler extends CheckoutHandler {
 
     @Value("${external.product-service.base-url:http://product-service:8082}")
     private String productServiceBaseUrl;
+
+    @Override
+    @Retry(name = "backendCallRetry", fallbackMethod = "fallbackStockCheck")
+    public void handle(CheckoutContext context) {
+        log.info("Starting stock check execution for user: {}", context.getUserId());
+        process(context);
+        handleNext(context);
+    }
 
     @Override
     protected void process(CheckoutContext context) {
@@ -80,5 +91,11 @@ public class StockCheckHandler extends CheckoutHandler {
 
         context.setOrderItems(orderItems);
         context.setSubtotal(subtotal);
+    }
+
+    public void fallbackStockCheck(CheckoutContext context, Exception ex) {
+        log.error("All retry attempts failed to call product-service in StockCheckHandler. Error: {}. Marking stock as failed but allowed to bypass.", ex.getMessage(), ex);
+        context.setMetadata("STOCK_CHECK_STATUS", "FAILED_BUT_ALLOWED");
+        handleNext(context);
     }
 }

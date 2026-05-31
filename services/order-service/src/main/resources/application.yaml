@@ -36,3 +36,15 @@ external:
   openrouteservice:
     base-url: ${OPENROUTESERVICE_BASE_URL:https://api.openrouteservice.org}
     api-key: ${OPENROUTESERVICE_API_KEY:}
+
+resilience4j:
+  retry:
+    instances:
+      backendCallRetry:
+        maxAttempts: 3
+        waitDuration: 4s
+        retryExceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+

@@ -10,6 +10,10 @@ public abstract class CheckoutHandler {
 
     public void handle(CheckoutContext context) {
         process(context);
+        handleNext(context);
+    }
+
+    protected void handleNext(CheckoutContext context) {
         if (nextHandler != null) {
             nextHandler.handle(context);
         }
