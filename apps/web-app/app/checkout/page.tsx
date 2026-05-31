@@ -144,9 +144,18 @@ export default function CheckoutPage() {
     return null
   }
 
+  // --- CHUYỂN HƯỚNG NGAY SANG TRANG CHI TIẾT ĐƠN HÀNG KHI QUAY LẠI TỪ CỔNG THANH TOÁN (PAYOS) ---
+  useEffect(() => {
+    const isSuccessStatus = statusParam === 'success' || statusParam === 'PAID'
+    if (isSuccessStatus && orderIdParam && !qrCodeParam) {
+      router.replace(`/order?status=success&orderId=${orderIdParam}`)
+    }
+  }, [statusParam, orderIdParam, qrCodeParam, router])
+
   // --- LẮNG NGHE SỰ KIỆN THANH TOÁN THỜI GIAN THỰC (SSE) ---
   useEffect(() => {
-    if (statusParam === 'success' && orderIdParam) {
+    const isSuccessStatus = statusParam === 'success' || statusParam === 'PAID'
+    if (isSuccessStatus && orderIdParam) {
       setSseStatus('PENDING')
       setSseMessage('Đang kết nối tới cổng thanh toán để chờ xác thực chuyển khoản...')
 
@@ -537,7 +546,7 @@ export default function CheckoutPage() {
   }
 
   // --- RENDERING MÀN HÌNH SSE KIỂM TRA THANH TOÁN THỰC TẾ ---
-  if (statusParam === 'success' && orderIdParam) {
+  if ((statusParam === 'success' || statusParam === 'PAID') && orderIdParam) {
     const isCOD = searchParams.get('method') === 'COD'
 
     return (

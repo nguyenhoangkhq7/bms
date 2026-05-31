@@ -60,6 +60,7 @@ export default function OrdersDashboardPage() {
   const [loadingBooks, setLoadingBooks] = useState<Record<number, boolean>>({})
 
   const orderIdParam = searchParams.get('orderId')
+  const statusParam = searchParams.get('status')
   const userId = getEffectiveUserId()
 
   const formattedCurrency = useMemo(
@@ -112,6 +113,13 @@ export default function OrdersDashboardPage() {
     }
   }, [authLoading, isSignedIn])
 
+  // Tải lại danh sách đơn hàng khi URL param thay đổi (ví dụ: sau khi redirect thanh toán thành công)
+  useEffect(() => {
+    if (orderIdParam && isSignedIn) {
+      loadOrders(true)
+    }
+  }, [orderIdParam, isSignedIn])
+
   // Tự động cập nhật selectedOrderId khi orderIdParam thay đổi
   useEffect(() => {
     if (orderIdParam && orders.length > 0) {
@@ -121,6 +129,56 @@ export default function OrdersDashboardPage() {
       }
     }
   }, [orderIdParam, orders])
+
+  // --- LẮNG NGHE SỰ KIỆN THANH TOÁN THỜI GIAN THỰC (SSE) CHO THANH TOÁN LẠI ---
+  useEffect(() => {
+    const isSuccessStatus = statusParam === 'success' || statusParam === 'PAID'
+    if (isSuccessStatus && orderIdParam && isSignedIn) {
+      toast.loading('Đang kết nối tới cổng thanh toán để chờ xác thực chuyển khoản...', { id: 'repayment-validation' })
+
+      let sseBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL
+      if (!sseBase) {
+        const protocol = window.location.protocol
+        const host = window.location.hostname
+        const port = window.location.port === '3000' ? '' : (window.location.port ? `:${window.location.port}` : '')
+        sseBase = `${protocol}//${host}${port}/api/v1/orders`
+      }
+      
+      const eventSource = new EventSource(`${sseBase}/api/payments/sse/${orderIdParam}`)
+
+      eventSource.addEventListener('INIT', (event: MessageEvent) => {
+        toast.loading(event.data, { id: 'repayment-validation' })
+      })
+
+      eventSource.addEventListener('PAYMENT_STATUS', (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data.status === 'PAID') {
+            toast.success('Thanh toán thành công qua VietQR!', { id: 'repayment-validation' })
+            loadOrders(true)
+            router.replace('/order?orderId=' + orderIdParam)
+          }
+        } catch {
+          if (event.data && event.data.includes('PAID')) {
+            toast.success('Thanh toán thành công qua VietQR!', { id: 'repayment-validation' })
+            loadOrders(true)
+            router.replace('/order?orderId=' + orderIdParam)
+          }
+        }
+        eventSource.close()
+      })
+
+      eventSource.onerror = () => {
+        toast.dismiss('repayment-validation')
+        eventSource.close()
+      }
+
+      return () => {
+        eventSource.close()
+        toast.dismiss('repayment-validation')
+      }
+    }
+  }, [statusParam, orderIdParam, isSignedIn, router])
 
   // Tự động chuyển trang đăng nhập nếu chưa authenticate
   useEffect(() => {
@@ -180,7 +238,7 @@ export default function OrdersDashboardPage() {
     if (!selectedOrderId) return
     setActionLoading(true)
     try {
-      const returnUrl = `${window.location.origin}/checkout?status=success&orderId=${selectedOrderId}`
+      const returnUrl = `${window.location.origin}/order?status=success&orderId=${selectedOrderId}`
       const cancelUrl = `${window.location.origin}/order?orderId=${selectedOrderId}`
       const updatedOrder = await changeOrderPaymentMethod(selectedOrderId, method, returnUrl, cancelUrl)
       
