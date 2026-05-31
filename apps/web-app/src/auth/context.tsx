@@ -147,6 +147,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveRefreshToken(nextSession.refreshToken);
       setAuthTokens(nextSession.token, nextSession.refreshToken);
       sessionStorage.setItem(ACTIVE_SESSION_ID_KEY, sessionId);
+      if (nextSession.user && nextSession.user.id) {
+        localStorage.setItem('userId', String(nextSession.user.id));
+        localStorage.setItem('authMode', 'real');
+      }
     },
     [],
   );
@@ -203,6 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveSessionId(null);
       if (removeFromStorage) {
         sessionStorage.removeItem(ACTIVE_SESSION_ID_KEY);
+        localStorage.removeItem('userId');
+        localStorage.removeItem('authMode');
       }
       setActiveUser(null);
       setActiveToken(null);
@@ -351,6 +357,10 @@ const persistSession = useCallback(
       };
 
       writeAuthSessions(nextSessions);
+      if (sessionData.user && sessionData.user.id) {
+        localStorage.setItem('userId', String(sessionData.user.id));
+        localStorage.setItem('authMode', 'real');
+      }
       activateSession(sessionId, nextSession, nextSessions);
     },
     [activateSession],

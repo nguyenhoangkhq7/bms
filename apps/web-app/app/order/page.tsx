@@ -20,13 +20,15 @@ import {
   BookOpen,
   DollarSign,
   CreditCard,
-  Banknote
+  Banknote,
+  Star
 } from 'lucide-react'
 import { useAuth } from '@/src/auth/context'
 import { getEffectiveUserId } from '@/src/cart/utils/userContext'
-import { getOrders, cancelOrder } from '@/src/api/checkoutService'
+import { getOrders, cancelOrder, changeOrderPaymentMethod } from '@/src/api/checkoutService'
 import { bookService } from '@/src/api/bookService'
 import type { CheckoutResponse } from '@/src/checkout/types'
+import { reviewService } from '@/src/api/reviewService'
 
 interface ResolvedBook {
   id: number
@@ -38,18 +40,27 @@ interface ResolvedBook {
 export default function OrdersDashboardPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isSignedIn, isLoading: authLoading } = useAuth()
+  const { isSignedIn, isLoading: authLoading, activeUser } = useAuth()
   
   const [orders, setOrders] = useState<CheckoutResponse[]>([])
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
+
+  // Review & Rating State variables
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewBookId, setReviewBookId] = useState<number | null>(null)
+  const [reviewBookTitle, setReviewBookTitle] = useState('')
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewContent, setReviewContent] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
   
   // Cache để lưu thông tin sách đã load, tránh gọi lại nhiều lần
   const [booksCache, setBooksCache] = useState<Record<number, ResolvedBook>>({})
   const [loadingBooks, setLoadingBooks] = useState<Record<number, boolean>>({})
 
   const orderIdParam = searchParams.get('orderId')
+  const statusParam = searchParams.get('status')
   const userId = getEffectiveUserId()
 
   const formattedCurrency = useMemo(
@@ -102,6 +113,13 @@ export default function OrdersDashboardPage() {
     }
   }, [authLoading, isSignedIn])
 
+  // Tải lại danh sách đơn hàng khi URL param thay đổi (ví dụ: sau khi redirect thanh toán thành công)
+  useEffect(() => {
+    if (orderIdParam && isSignedIn) {
+      loadOrders(true)
+    }
+  }, [orderIdParam, isSignedIn])
+
   // Tự động cập nhật selectedOrderId khi orderIdParam thay đổi
   useEffect(() => {
     if (orderIdParam && orders.length > 0) {
@@ -111,6 +129,56 @@ export default function OrdersDashboardPage() {
       }
     }
   }, [orderIdParam, orders])
+
+  // --- LẮNG NGHE SỰ KIỆN THANH TOÁN THỜI GIAN THỰC (SSE) CHO THANH TOÁN LẠI ---
+  useEffect(() => {
+    const isSuccessStatus = statusParam === 'success' || statusParam === 'PAID'
+    if (isSuccessStatus && orderIdParam && isSignedIn) {
+      toast.loading('Đang kết nối tới cổng thanh toán để chờ xác thực chuyển khoản...', { id: 'repayment-validation' })
+
+      let sseBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL
+      if (!sseBase) {
+        const protocol = window.location.protocol
+        const host = window.location.hostname
+        const port = window.location.port === '3000' ? '' : (window.location.port ? `:${window.location.port}` : '')
+        sseBase = `${protocol}//${host}${port}/api/v1/orders`
+      }
+      
+      const eventSource = new EventSource(`${sseBase}/api/payments/sse/${orderIdParam}`)
+
+      eventSource.addEventListener('INIT', (event: MessageEvent) => {
+        toast.loading(event.data, { id: 'repayment-validation' })
+      })
+
+      eventSource.addEventListener('PAYMENT_STATUS', (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data.status === 'PAID') {
+            toast.success('Thanh toán thành công qua VietQR!', { id: 'repayment-validation' })
+            loadOrders(true)
+            router.replace('/order?orderId=' + orderIdParam)
+          }
+        } catch {
+          if (event.data && event.data.includes('PAID')) {
+            toast.success('Thanh toán thành công qua VietQR!', { id: 'repayment-validation' })
+            loadOrders(true)
+            router.replace('/order?orderId=' + orderIdParam)
+          }
+        }
+        eventSource.close()
+      })
+
+      eventSource.onerror = () => {
+        toast.dismiss('repayment-validation')
+        eventSource.close()
+      }
+
+      return () => {
+        eventSource.close()
+        toast.dismiss('repayment-validation')
+      }
+    }
+  }, [statusParam, orderIdParam, isSignedIn, router])
 
   // Tự động chuyển trang đăng nhập nếu chưa authenticate
   useEffect(() => {
@@ -165,6 +233,37 @@ export default function OrdersDashboardPage() {
     })
   }, [selectedOrder, booksCache, loadingBooks])
 
+  // --- CHUYỂN ĐỔI PHƯƠNG THỨC THANH TOÁN ---
+  async function handleSwitchPaymentMethod(method: 'PAYOS' | 'COD') {
+    if (!selectedOrderId) return
+    setActionLoading(true)
+    try {
+      const returnUrl = `${window.location.origin}/order?status=success&orderId=${selectedOrderId}`
+      const cancelUrl = `${window.location.origin}/order?orderId=${selectedOrderId}`
+      const updatedOrder = await changeOrderPaymentMethod(selectedOrderId, method, returnUrl, cancelUrl)
+      
+      toast.success(
+        method === 'PAYOS' 
+          ? 'Đã cập nhật cổng thanh toán VietQR! Đang chuyển hướng...' 
+          : 'Đã chuyển đổi sang phương thức thanh toán COD thành công!'
+      )
+      
+      // Nếu chọn PAYOS và có checkoutUrl, chuyển hướng trực tiếp trên cùng một tab để tránh bị trình duyệt chặn pop-up
+      if (method === 'PAYOS' && updatedOrder.checkoutUrl) {
+        window.location.href = updatedOrder.checkoutUrl
+      }
+
+      await loadOrders(true) // Tải lại danh sách đơn hàng ngầm để update UI
+    } catch (error: unknown) {
+      const msg = typeof error === 'object' && error !== null && 'message' in error
+        ? (error as { message: string }).message
+        : 'Chuyển đổi phương thức thanh toán thất bại'
+      toast.error(msg)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   // --- HỦY ĐƠN HÀNG ---
   async function handleCancelOrder(id: number) {
     const confirmed = window.confirm(`Bạn có chắc chắn muốn HỦY đơn hàng #${id} không?`)
@@ -185,6 +284,44 @@ export default function OrdersDashboardPage() {
     }
   }
 
+  // --- MỞ MODAL ĐÁNH GIÁ ---
+  function openReviewModal(bookId: number, title: string) {
+    setReviewBookId(bookId)
+    setReviewBookTitle(title)
+    setReviewRating(5)
+    setReviewContent('')
+    setIsReviewModalOpen(true)
+  }
+
+  // --- GỬI ĐÁNH GIÁ LÊN BACKEND ---
+  async function handleSubmittingReview() {
+    if (!reviewBookId) return
+    if (!reviewContent.trim()) {
+      toast.error('Vui lòng nhập nội dung đánh giá sản phẩm!')
+      return
+    }
+    setSubmittingReview(true)
+    try {
+      const userDisplayName = activeUser?.fullName 
+        || activeUser?.email 
+        || 'Khách hàng BMS'
+
+      await reviewService.addReviewToBook(reviewBookId, {
+        content: reviewContent.trim(),
+        rating: reviewRating,
+        userName: userDisplayName,
+        userId: activeUser?.id ? Number(activeUser.id) : 9999
+      })
+
+      toast.success('Gửi đánh giá thành công! Cảm ơn phản hồi của bạn.')
+      setIsReviewModalOpen(false)
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Đánh giá sản phẩm thất bại')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
   // --- ĐỊNH NGHĨA BADGE TRẠNG THÁI ---
   function renderStatusBadge(status: string) {
     const cleanStatus = status.toUpperCase()
@@ -193,6 +330,12 @@ export default function OrdersDashboardPage() {
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
             <AlertCircle size={12} className="animate-pulse" /> Chờ xử lý
+          </span>
+        )
+      case 'AWAITING_PAYMENT':
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-800 border border-violet-200">
+            <AlertCircle size={12} className="animate-pulse" /> Chờ thanh toán
           </span>
         )
       case 'CONFIRMED':
@@ -298,7 +441,7 @@ export default function OrdersDashboardPage() {
               </div>
             )}
 
-            <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[680px] overflow-y-auto p-1.5">
               {orders.map((order) => {
                 const isSelected = order.id === selectedOrderId
                 const date = order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'Mới'
@@ -306,10 +449,10 @@ export default function OrdersDashboardPage() {
                   <button
                     key={order.id}
                     onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 ${
+                    className={`w-full text-left rounded-2xl border p-4 transition-all duration-200 relative ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-50/50 shadow-md ring-1 ring-amber-400 scale-[1.01]'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+                        ? 'border-amber-400 bg-amber-50/50 shadow-md ring-2 ring-amber-400 z-10 scale-[1.01]'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm z-0'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -482,17 +625,65 @@ export default function OrdersDashboardPage() {
                         </h3>
                         <div className="flex items-start gap-3">
                           <div className="mt-0.5 rounded-xl bg-emerald-50 p-2 text-emerald-700 border border-emerald-100 shrink-0 shadow-sm">
-                            {selectedOrder.checkoutUrl ? <CreditCard size={18} /> : <Banknote size={18} />}
+                            {(selectedOrder.checkoutUrl || selectedOrder.paymentStatus?.includes('VietQR')) ? <CreditCard size={18} /> : <Banknote size={18} />}
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-800 leading-none">
-                              {selectedOrder.checkoutUrl ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}
+                              {(selectedOrder.checkoutUrl || selectedOrder.paymentStatus?.includes('VietQR')) ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}
                             </p>
                             <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                              {selectedOrder.checkoutUrl ? 'Hệ thống đối soát & xác nhận tự động qua cổng PayOS' : 'Khách hàng thanh toán tiền mặt trực tiếp cho shipper'}
+                              {(selectedOrder.checkoutUrl || selectedOrder.paymentStatus?.includes('VietQR')) ? 'Hệ thống đối soát & xác nhận tự động qua cổng PayOS' : 'Khách hàng thanh toán tiền mặt trực tiếp cho shipper'}
                             </p>
                           </div>
                         </div>
+
+                        {/* Thay đổi Phương thức thanh toán hoặc Thanh toán tiếp */}
+                        {!selectedOrder.paymentStatus?.includes('ĐÃ') && (currentStatus === 'PENDING' || currentStatus === 'AWAITING_PAYMENT') && (
+                          <div className="mt-2 pt-2 border-t border-slate-100/60 space-y-2">
+                            <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#a28354] block">Hành động thanh toán</span>
+                            <div className="flex flex-col gap-1.5">
+                              {selectedOrder.paymentStatus?.includes('VietQR') ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('PAYOS')}
+                                    disabled={actionLoading}
+                                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-white transition active:scale-[0.98] border border-amber-500 shadow-sm"
+                                  >
+                                    <CreditCard size={12} /> Thanh toán lại VietQR
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('COD')}
+                                    disabled={actionLoading}
+                                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition active:scale-[0.98]"
+                                  >
+                                    Đổi sang thanh toán COD (Tiền mặt)
+                                  </button>
+                                </>
+                              ) : !selectedOrder.paymentStatus?.includes('COD') ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('PAYOS')}
+                                    disabled={actionLoading}
+                                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-amber-700 transition active:scale-[0.98] shadow-sm"
+                                  >
+                                    <CreditCard size={12} /> Đổi sang Chuyển khoản VietQR
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSwitchPaymentMethod('COD')}
+                                    disabled={actionLoading}
+                                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition active:scale-[0.98]"
+                                  >
+                                    Đổi sang thanh toán COD (Tiền mặt)
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Trạng thái & Hủy đơn */}
@@ -511,7 +702,7 @@ export default function OrdersDashboardPage() {
                           </span>
                         </div>
 
-                        {currentStatus === 'PENDING' && (
+                        {(currentStatus === 'PENDING' || currentStatus === 'AWAITING_PAYMENT') ? (
                           <button
                             type="button"
                             onClick={() => handleCancelOrder(selectedOrder.id)}
@@ -520,6 +711,13 @@ export default function OrdersDashboardPage() {
                           >
                             {actionLoading ? 'Đang hủy...' : 'Hủy đơn'}
                           </button>
+                        ) : !isCanceled && (
+                          <span 
+                            className="cursor-help text-[10px] text-slate-400 font-bold uppercase tracking-wider bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl"
+                            title="Chỉ đơn hàng ở trạng thái Chờ xử lý hoặc Chờ thanh toán mới được phép hủy"
+                          >
+                            Không thể hủy
+                          </span>
                         )}
                       </div>
                     </div>
@@ -558,6 +756,20 @@ export default function OrdersDashboardPage() {
                               <p className="text-xs text-slate-400 mt-1 font-medium bg-slate-100 px-2 py-0.5 rounded inline-block">
                                 Số lượng: {item.quantity}
                               </p>
+                              
+                              {/* Rate/Review button if order is completed */}
+                              {currentStatus === 'COMPLETED' && (
+                                <div className="mt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => openReviewModal(item.bookId, book?.title || `Sách #${item.bookId}`)}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 hover:text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-full border border-amber-200 hover:bg-amber-100/60 transition shadow-sm active:scale-95"
+                                  >
+                                    <Star size={11} className="fill-amber-500 text-amber-500" />
+                                    Đánh giá sản phẩm
+                                  </button>
+                                </div>
+                              )}
                             </div>
 
                             {/* Price */}
@@ -615,6 +827,83 @@ export default function OrdersDashboardPage() {
         </div>
 
       </div>
+
+      {/* MODAL ĐÁNH GIÁ SẢN PHẨM (PREMIUM RATING INTERFACE) */}
+      {isReviewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl transition-all duration-300 transform scale-100">
+            {/* Header */}
+            <div className="mb-4 text-center">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800 border border-amber-200">
+                Đánh giá chất lượng
+              </span>
+              <h3 className="mt-2 text-xl font-bold text-slate-950 leading-tight">
+                Cảm nhận của bạn về cuốn sách?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1.5 font-medium px-4 line-clamp-2">
+                &ldquo;{reviewBookTitle}&rdquo;
+              </p>
+            </div>
+
+            {/* Star Selector */}
+            <div className="flex justify-center gap-2.5 my-5 pb-4 border-b border-slate-100">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setReviewRating(star)}
+                  className="transition transform hover:scale-110 active:scale-95 duration-100"
+                >
+                  <Star
+                    size={36}
+                    className={`${
+                      star <= reviewRating
+                        ? 'fill-amber-400 text-amber-400 drop-shadow-md'
+                        : 'text-slate-200 hover:text-slate-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {/* Comment Area */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                  Viết nhận xét của bạn
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={reviewContent}
+                  onChange={(e) => setReviewContent(e.target.value)}
+                  placeholder="Hãy chia sẻ cảm nhận thực tế của bạn khi đọc cuốn sách này để giúp những độc giả khác có lựa chọn phù hợp nhất..."
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 placeholder:text-slate-300 leading-relaxed"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={submittingReview}
+                  onClick={handleSubmittingReview}
+                  className="flex-1 rounded-full bg-slate-950 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-800 shadow-md transition disabled:opacity-50 active:scale-[0.98]"
+                >
+                  {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="rounded-full border border-slate-300 bg-white px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition active:scale-[0.98]"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
