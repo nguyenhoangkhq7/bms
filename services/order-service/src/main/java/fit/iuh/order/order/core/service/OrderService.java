@@ -28,6 +28,9 @@ public class OrderService {
     @Autowired(required = false)
     private fit.iuh.order.payment.repository.PaymentTransactionRepository paymentTransactionRepository;
 
+    @Autowired(required = false)
+    private fit.iuh.order.messaging.OrderEventPublisher orderEventPublisher;
+
     private final OrderRepository orderRepository;
     private final StockCheckHandler stockCheckHandler;
     private final VoucherCheckHandler voucherCheckHandler;
@@ -156,8 +159,16 @@ public class OrderService {
     public OrderResponse updateOrderStatus(Long id, String status) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
-        order.setStatus(OrderStatus.valueOf(status.toUpperCase()));
-        return mapToResponse(orderRepository.save(order));
+        OrderStatus newStatus = OrderStatus.valueOf(status.toUpperCase());
+        order.setStatus(newStatus);
+        
+        Order savedOrder = orderRepository.save(order);
+        if (newStatus == OrderStatus.COMPLETED) {
+            if (orderEventPublisher != null) {
+                orderEventPublisher.publishOrderCompleted(savedOrder);
+            }
+        }
+        return mapToResponse(savedOrder);
     }
 
     @Transactional
