@@ -4,7 +4,7 @@ import type { CheckoutRequest, CheckoutPreviewResponse, CheckoutResponse } from 
 const configuredBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || process.env.BACKEND_API_BASE_URL
 const DEFAULT_BASES = ['http://localhost/api/v1/orders']
 const BACKEND_BASE_CANDIDATES = Array.from(
-  new Set([...DEFAULT_BASES, ...(configuredBase ? [configuredBase] : [])])
+  new Set([...(configuredBase ? [configuredBase] : []), ...DEFAULT_BASES])
 )
 const FALLBACK_STATUSES = new Set([404, 502, 503, 504])
 
@@ -166,6 +166,38 @@ export async function cancelOrder(id: number | string): Promise<CheckoutResponse
       const url = `${submitUrls[j]}/${id}/cancel`
       try {
         const res = await axios.post(url, {}, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response && isLastBase && isLastUrl) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function changeOrderPaymentMethod(
+  id: number | string,
+  paymentMethod: string,
+  returnUrl?: string,
+  cancelUrl?: string
+): Promise<CheckoutResponse> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = `${submitUrls[j]}/${id}/payment-method`
+      try {
+        const res = await axios.put(url, null, {
+          headers,
+          params: { paymentMethod, returnUrl, cancelUrl }
+        })
         return res.data
       } catch (err: any) {
         lastError = err
