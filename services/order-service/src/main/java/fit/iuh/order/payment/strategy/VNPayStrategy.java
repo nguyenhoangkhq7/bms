@@ -9,4 +9,9 @@ public class VNPayStrategy implements PaymentStrategy {
     public void pay(BigDecimal amount) {
         // Placeholder for VNPay integration.
     }
+
+    @Override
+    public String verifyPaymentStatus(String orderId) {
+        return "PENDING";
+    }
 }

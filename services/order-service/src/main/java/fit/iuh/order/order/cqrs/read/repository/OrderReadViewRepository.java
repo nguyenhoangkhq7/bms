@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface OrderReadViewRepository extends JpaRepository<OrderReadView, String> {
+    java.util.List<OrderReadView> findByStatusAndCreatedAtBefore(String status, java.time.LocalDateTime dateTime);
 }

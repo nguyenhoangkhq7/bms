@@ -9,4 +9,9 @@ public class MomoStrategy implements PaymentStrategy {
     public void pay(BigDecimal amount) {
         // Placeholder for Momo integration.
     }
+
+    @Override
+    public String verifyPaymentStatus(String orderId) {
+        return "PENDING";
+    }
 }

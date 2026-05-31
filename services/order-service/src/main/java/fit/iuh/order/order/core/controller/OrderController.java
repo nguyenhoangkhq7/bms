@@ -17,6 +17,9 @@ import java.util.List;
 public class OrderController {
     private final OrderService orderService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private fit.iuh.order.cron.PaymentReconciliationScheduler paymentReconciliationScheduler;
+
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest request) {
         return new ResponseEntity<>(orderService.createOrder(request), HttpStatus.CREATED);
@@ -66,5 +69,14 @@ public class OrderController {
             @RequestParam(required = false) String returnUrl,
             @RequestParam(required = false) String cancelUrl) {
         return ResponseEntity.ok(orderService.changePaymentMethod(id, paymentMethod, returnUrl, cancelUrl));
+    }
+
+    @PostMapping("/reconcile-test")
+    public ResponseEntity<String> triggerReconciliationTest() {
+        if (paymentReconciliationScheduler != null) {
+            paymentReconciliationScheduler.reconcilePayments();
+            return ResponseEntity.ok("Payment reconciliation triggered successfully!");
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Scheduler not available");
     }
 }

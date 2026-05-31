@@ -162,4 +162,35 @@ public class PayOSPaymentStrategy implements PaymentStrategy {
         }
         return hexString.toString();
     }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public String verifyPaymentStatus(String orderId) {
+        try {
+            System.out.println("PayOS: Verifying payment status for Order ID: " + orderId);
+            Map<String, Object> response = webClient.get()
+                    .uri("/v2/payment-requests/" + orderId)
+                    .header("x-client-id", clientId)
+                    .header("x-api-key", apiKey)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            if (response != null && "00".equals(response.get("code"))) {
+                Map<String, Object> data = (Map<String, Object>) response.get("data");
+                if (data != null) {
+                    String status = (String) data.get("status");
+                    System.out.println("PayOS response status for Order #" + orderId + ": " + status);
+                    if ("PAID".equalsIgnoreCase(status)) {
+                        return "PAID";
+                    } else if ("CANCELLED".equalsIgnoreCase(status) || "EXPIRED".equalsIgnoreCase(status)) {
+                        return "FAILED";
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error verifying PayOS status for Order #" + orderId + ": " + e.getMessage());
+        }
+        return "PENDING";
+    }
 }

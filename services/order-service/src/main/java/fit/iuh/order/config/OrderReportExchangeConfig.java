@@ -12,7 +12,7 @@ public class OrderReportExchangeConfig {
     public static final String ROUTING_KEY = "order.completed";
 
     @Bean
-    public TopicExchange orderEventsExchange() {
+    public TopicExchange orderReportEventsExchange() {
         return ExchangeBuilder.topicExchange(EXCHANGE_NAME)
                 .durable(true)
                 .build();
@@ -27,7 +27,7 @@ public class OrderReportExchangeConfig {
     @Bean
     public Binding bindingReportOrderCompleted() {
         return BindingBuilder.bind(reportOrderCompletedQueue())
-                .to(orderEventsExchange())
+                .to(orderReportEventsExchange())
                 .with(ROUTING_KEY);
     }
 }
