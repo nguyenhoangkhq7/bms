@@ -21,9 +21,6 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-const productApiBase = process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
-const CHAT_API_URL = `${productApiBase}/api/v1/ai/chat/stream`;
-
 export function useStreamChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -58,9 +55,29 @@ export function useStreamChat() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // Sinh URL gọi API động để tránh lỗi CORS và localhost khi truy cập từ thiết bị/domain khác
+    const getProductApiBase = () => {
+      if (process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL) {
+        return process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL;
+      }
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        return `${process.env.NEXT_PUBLIC_API_URL}/products`;
+      }
+      if (typeof window !== 'undefined') {
+        const protocol = window.location.protocol;
+        const host = window.location.hostname;
+        const port = window.location.port === '3000' ? '' : (window.location.port ? `:${window.location.port}` : '');
+        return `${protocol}//${host}${port}/api/v1/products`;
+      }
+      return 'http://localhost/api/v1/products';
+    };
+
+    const productApiBase = getProductApiBase();
+    const chatApiUrl = `${productApiBase}/api/v1/ai/chat/stream`;
+
     try {
       const token = getAuthToken();
-      const response = await fetch(CHAT_API_URL, {
+      const response = await fetch(chatApiUrl, {
         method: 'POST',
         headers: { 'ngrok-skip-browser-warning': 'true',
           'Content-Type': 'application/json',
