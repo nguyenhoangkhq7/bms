@@ -519,7 +519,7 @@ function HomeContent() {
                     className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(15,23,42,0.1)]"
                   >
                     {/* Book Image */}
-                    <Link href={`/detail/${book.id}`} className="relative block aspect-[3/4] overflow-hidden bg-slate-100">
+                    <Link href={`/detail/${book.id}`} className="relative block aspect-[4/5] overflow-hidden bg-slate-100">
                       {bookImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -534,16 +534,24 @@ function HomeContent() {
                       )}
                     </Link>
 
-                    {/* Book Info */}
+                    {/* Book Info — fixed-height sections to keep all cards aligned */}
                     <div className="flex flex-1 flex-col p-3">
-                      <Link href={`/detail/${book.id}`}>
-                        <h3 className="mb-0.5 line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-slate-950">
+                      {/* Title: always 2 lines tall */}
+                      <Link href={`/detail/${book.id}`} className="mb-0.5 block h-[2.625rem] overflow-hidden">
+                        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-slate-950">
                           {book.title}
                         </h3>
                       </Link>
-                      <p className="mb-2 text-xs text-slate-500">{book.author}</p>
 
-                      {/* Rating — always shown */}
+                      {/* Author: always 1 line tall */}
+                      <p className="mb-1 h-4 truncate text-[11px] text-slate-500 font-medium">{book.author}</p>
+
+                      {/* Description: always 2 lines tall */}
+                      <p className="mb-2 h-8 line-clamp-2 text-[11px] leading-4 text-slate-400">
+                        {book.description || 'Chưa có mô tả'}
+                      </p>
+
+                      {/* Rating — always shown, fixed height */}
                       <div className="mb-2 flex items-center gap-1">
                         {[...Array(5)].map((_, i) => (
                           <Star
@@ -555,17 +563,17 @@ function HomeContent() {
                         <span className="ml-1 text-[10px] text-slate-400">({reviewCount})</span>
                       </div>
 
-                      {/* Price */}
-                      <p className="mb-1.5 text-base font-bold text-red-600">
-                        đ{Number(book.price).toLocaleString('vi-VN')}
-                      </p>
+                      {/* Price and Stock status */}
+                      <div className="mb-3 mt-1 flex items-center justify-between">
+                        <p className="text-base font-bold text-red-600">
+                          đ{Number(book.price).toLocaleString('vi-VN')}
+                        </p>
+                        <p className={`text-[11px] font-medium ${isInStock ? 'text-green-600' : 'text-red-500'}`}>
+                          {isInStock ? 'Còn hàng' : 'Hết hàng'}
+                        </p>
+                      </div>
 
-                      {/* Stock status */}
-                      <p className={`mb-3 text-xs font-medium ${isInStock ? 'text-green-600' : 'text-red-500'}`}>
-                        {isInStock ? 'Còn hàng' : 'Hết hàng'}
-                      </p>
-
-                      {/* Add to cart button — full width */}
+                      {/* Add to cart button — full width, pinned to bottom */}
                       <button
                         onClick={(e) => {
                           e.preventDefault();
