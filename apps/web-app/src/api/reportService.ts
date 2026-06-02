@@ -1,3 +1,4 @@
+import { apiFetch } from './apiConfig';
 export interface ReportSummary {
   service: string;
   status: string;
@@ -60,7 +61,7 @@ async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Prom
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await apiFetch(url, { signal: controller.signal });
     if (!response.ok) {
       const body = await response.text().catch(() => '');
       throw new Error(body || `HTTP ${response.status} khi gọi ${url}`);
@@ -117,3 +118,4 @@ export const reportService = {
     return response.json() as Promise<TopBook[]>;
   },
 };
+

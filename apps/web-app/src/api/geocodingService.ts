@@ -1,3 +1,4 @@
+import { apiFetch } from './apiConfig';
 export interface GeocodingSuggestion {
   displayName: string;
   latitude: number;
@@ -21,7 +22,7 @@ export async function searchVietnamAddress(query: string): Promise<GeocodingSugg
   url.searchParams.set("countrycodes", "vn");
   url.searchParams.set("q", normalized);
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     method: "GET",
     headers: {
       "Accept-Language": "vi,en",
@@ -42,3 +43,4 @@ export async function searchVietnamAddress(query: string): Promise<GeocodingSugg
     }))
     .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude));
 }
+

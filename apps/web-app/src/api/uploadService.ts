@@ -1,3 +1,4 @@
+import { apiFetch } from './apiConfig';
 import { handleResponse } from './apiConfig';
 
 const productApiBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/products` : process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
@@ -8,7 +9,7 @@ export const uploadService = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${UPLOAD_URL}?folder=${encodeURIComponent(folder)}`, {
+    const response = await apiFetch(`${UPLOAD_URL}?folder=${encodeURIComponent(folder)}`, {
         method: 'POST',
         body: formData,
     });
@@ -17,3 +18,4 @@ export const uploadService = {
     return data?.url || '';
   }
 };
+

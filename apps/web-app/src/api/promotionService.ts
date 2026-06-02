@@ -1,3 +1,4 @@
+import { apiFetch } from './apiConfig';
 export interface Voucher {
   id?: number;
   code: string;
@@ -23,12 +24,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export const promotionService = {
   async getVouchers(): Promise<Voucher[]> {
-    const response = await fetch(PROMOTION_BASE_URL);
+    const response = await apiFetch(PROMOTION_BASE_URL);
     return handleResponse<Voucher[]>(response);
   },
 
   async createVoucher(voucher: Omit<Voucher, 'id'>): Promise<Voucher> {
-    const response = await fetch(PROMOTION_BASE_URL, {
+    const response = await apiFetch(PROMOTION_BASE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(voucher),
@@ -37,7 +38,7 @@ export const promotionService = {
   },
 
   async updateVoucher(id: number, voucher: Voucher): Promise<Voucher> {
-    const response = await fetch(`${PROMOTION_BASE_URL}/${id}`, {
+    const response = await apiFetch(`${PROMOTION_BASE_URL}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(voucher),
@@ -46,7 +47,7 @@ export const promotionService = {
   },
 
   async deleteVoucher(id: number): Promise<void> {
-    const response = await fetch(`${PROMOTION_BASE_URL}/${id}`, {
+    const response = await apiFetch(`${PROMOTION_BASE_URL}/${id}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -55,7 +56,7 @@ export const promotionService = {
   },
 
   async askAI(message: string): Promise<string> {
-    const response = await fetch(`${PROMOTION_BASE_URL}/ask-ai`, {
+    const response = await apiFetch(`${PROMOTION_BASE_URL}/ask-ai`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: message,
@@ -66,3 +67,4 @@ export const promotionService = {
     return response.text();
   },
 };
+

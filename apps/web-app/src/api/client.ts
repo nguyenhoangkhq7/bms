@@ -34,6 +34,7 @@ class ApiClient {
       timeout: 30000,
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       },
       withCredentials: true, // Enable cookies for refresh token
     });
@@ -147,3 +148,4 @@ export function setAuthSyncListener(listener: AuthSyncListener | null) {
 
 export const apiClient = new ApiClient();
 export const httpClient = apiClient.getClient();
+

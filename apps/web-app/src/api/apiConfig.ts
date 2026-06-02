@@ -22,3 +22,15 @@ export const handleResponse = async <T>(response: Response): Promise<T | null> =
     if (response.status === 204) return null;
     return response.json() as Promise<T>;
 };
+
+export const apiFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const customInit = {
+        ...init,
+        headers: {
+            ...init?.headers,
+            'ngrok-skip-browser-warning': 'true'
+        }
+    };
+    return fetch(input, customInit);
+};
+

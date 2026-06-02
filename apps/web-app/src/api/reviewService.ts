@@ -1,14 +1,15 @@
+import { apiFetch } from './apiConfig';
 import { BASE_URL, handleResponse } from './apiConfig';
 import type { Review } from '@/src/types';
 
 export const reviewService = {
   getReviewsOfBook: async (bookId: number): Promise<Review[]> => {
-    const response = await fetch(`${BASE_URL}/${bookId}/reviews`);
+    const response = await apiFetch(`${BASE_URL}/${bookId}/reviews`);
     return (await handleResponse<Review[]>(response)) ?? [];
   },
 
   addReviewToBook: async (bookId: number, review: Omit<Review, 'id'>): Promise<Review | null> => {
-    const response = await fetch(`${BASE_URL}/${bookId}/reviews`, {
+    const response = await apiFetch(`${BASE_URL}/${bookId}/reviews`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(review),
@@ -27,7 +28,7 @@ export const reviewService = {
     if (userName) {
       url.searchParams.set('userName', userName);
     }
-    const response = await fetch(url.toString(), {
+    const response = await apiFetch(url.toString(), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(review),
@@ -36,9 +37,10 @@ export const reviewService = {
   },
 
   deleteReview: async (reviewId: number): Promise<null> => {
-    const response = await fetch(`${BASE_URL}/reviews/${reviewId}`, {
+    const response = await apiFetch(`${BASE_URL}/reviews/${reviewId}`, {
       method: 'DELETE',
     });
     return await handleResponse<null>(response);
   },
 };
+

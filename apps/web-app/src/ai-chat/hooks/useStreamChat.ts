@@ -62,7 +62,7 @@ export function useStreamChat() {
       const token = getAuthToken();
       const response = await fetch(CHAT_API_URL, {
         method: 'POST',
-        headers: {
+        headers: { 'ngrok-skip-browser-warning': 'true',
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -239,3 +239,4 @@ export function useStreamChat() {
 
   return { messages, isStreaming, error, sendMessage, stopStreaming, clearMessages };
 }
+

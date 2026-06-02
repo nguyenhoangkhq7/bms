@@ -46,7 +46,7 @@ async function getWithRetry(url: string, headers: Record<string, string>) {
 
 export const cartApiService = {
   async add(body: any, token?: string | null) {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
     if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
 
     let lastError: any = null
@@ -67,7 +67,7 @@ export const cartApiService = {
   },
 
   async get(userId: string, token?: string | null) {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
     if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
 
     let lastError: any = null
@@ -96,7 +96,7 @@ export const cartApiService = {
   },
 
   async remove(body: any, token?: string | null) {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
     if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
 
     let lastError: any = null
@@ -116,7 +116,7 @@ export const cartApiService = {
   },
 
   async updateQuantity(body: any, token?: string | null) {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
     if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
 
     let lastError: any = null
@@ -135,3 +135,4 @@ export const cartApiService = {
     throw lastError
   }
 }
+
