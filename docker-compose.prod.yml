@@ -255,14 +255,14 @@ services:
       - bookstore-network
 
   reranker-service:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
     container_name: reranker-service
     restart: unless-stopped
     ports:
       - "8085:80"
     volumes:
       - reranker_data:/data
-    command: --model-id BAAI/bge-reranker-v2-m3
+    command: --model-id onnx-community/bge-reranker-v2-m3-ONNX --max-batch-tokens 4096
     networks:
       - bookstore-network
 
