@@ -24,12 +24,17 @@ export const handleResponse = async <T>(response: Response): Promise<T | null> =
 };
 
 export const apiFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlString = typeof input === 'string' ? input : input.toString();
+    const headers = { ...init?.headers } as Record<string, string>;
+    
+    // Only inject ngrok skip header for our own API endpoints to avoid CORS preflight issues on external APIs
+    if (!urlString.includes('provinces.open-api.vn')) {
+        headers['ngrok-skip-browser-warning'] = 'true';
+    }
+
     const customInit = {
         ...init,
-        headers: {
-            ...init?.headers,
-            'ngrok-skip-browser-warning': 'true'
-        }
+        headers
     };
     return fetch(input, customInit);
 };
