@@ -22,6 +22,7 @@ import {
 import { searchVietnamAddress } from '@/src/api/geocodingService'
 import { getDistrictsByProvinceCode, getProvinces, type District, type Province } from '@/src/api/vnAddressService'
 import { promotionService, type Voucher } from '@/src/api/promotionService'
+import { getOrderById } from '@/src/api/checkoutService'
 
 function calculateVoucherDiscount(voucher: Voucher, subtotal: number, baseShippingFee: number) {
   if (voucher.minOrderValue && subtotal < voucher.minOrderValue) {
@@ -166,48 +167,85 @@ export default function CheckoutPage() {
         const port = window.location.port === '3000' ? '' : (window.location.port ? `:${window.location.port}` : '')
         sseBase = `${protocol}//${host}${port}/api/v1/orders`
       }
-      const eventSource = new EventSource(`${sseBase}/api/payments/sse/${orderIdParam}`)
+      
+      let eventSource: EventSource | null = null
+      let isCleared = false
+      let pollInterval: NodeJS.Timeout | null = null
 
-      eventSource.addEventListener('INIT', (event: MessageEvent) => {
-        setSseMessage(event.data)
-      })
-
-      eventSource.addEventListener('PAYMENT_STATUS', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          if (data.status === 'PAID') {
-            setSseStatus('PAID')
-            setSseMessage('Thành công! Đơn hàng đã được thanh toán. Đang chuyển hướng sang chi tiết đơn hàng...')
-            toast.success('Thanh toán thành công qua VietQR!')
-            setTimeout(() => {
-              router.push(`/order?orderId=${orderIdParam}`)
-            }, 1500)
-          }
-        } catch {
-          if (event.data && event.data.includes('PAID')) {
-            setSseStatus('PAID')
-            setSseMessage('Thành công! Đơn hàng đã được thanh toán. Đang chuyển hướng sang chi tiết đơn hàng...')
-            toast.success('Thanh toán thành công qua VietQR!')
-            setTimeout(() => {
-              router.push(`/order?orderId=${orderIdParam}`)
-            }, 1500)
-          }
-        }
-        eventSource.close()
-      })
-
-      eventSource.onerror = () => {
-        // Fallback nhẹ nếu ngrok đứt kết nối tạm thời hoặc sự cố SSE
-        setSseStatus('ERROR')
-        setSseMessage('Kết nối gián đoạn. Nếu bạn đã chuyển khoản thành công, xin hãy F5 tải lại trang để kiểm tra trạng thái đơn.')
-        eventSource.close()
+      const handlePaymentSuccess = () => {
+        if (isCleared) return
+        isCleared = true
+        setSseStatus('PAID')
+        setSseMessage('Thành công! Đơn hàng đã được thanh toán. Đang chuyển hướng sang chi tiết đơn hàng...')
+        toast.success('Thanh toán thành công qua VietQR!')
+        if (eventSource) eventSource.close()
+        if (pollInterval) clearInterval(pollInterval)
+        setTimeout(() => {
+          router.push(`/order?orderId=${orderIdParam}`)
+        }, 1500)
       }
+
+      // 1. Establish SSE Connection
+      try {
+        eventSource = new EventSource(`${sseBase}/api/payments/sse/${orderIdParam}`)
+
+        eventSource.addEventListener('INIT', (event: MessageEvent) => {
+          setSseMessage(event.data)
+        })
+
+        eventSource.addEventListener('PAYMENT_STATUS', (event: MessageEvent) => {
+          try {
+            const data = JSON.parse(event.data)
+            if (data.status === 'PAID') {
+              handlePaymentSuccess()
+            }
+          } catch {
+            if (event.data && event.data.includes('PAID')) {
+              handlePaymentSuccess()
+            }
+          }
+          if (eventSource) eventSource.close()
+        })
+
+        eventSource.onerror = () => {
+          console.warn('SSE connection encountered an error, falling back to polling...')
+          if (eventSource) eventSource.close()
+        }
+      } catch (err) {
+        console.error('Failed to initialize EventSource:', err)
+      }
+
+      // 2. Setup Polling Fallback (Bypasses Ngrok warning page using headers via Axios)
+      const checkPaymentStatus = async () => {
+        if (isCleared) return
+        try {
+          const order = await getOrderById(orderIdParam)
+          // order.paymentStatus becomes "ĐÃ THANH TOÁN (VietQR)" or order.status transitions to "PENDING"
+          if (order && (
+            order.status === 'CONFIRMED' || 
+            order.status === 'PENDING' || 
+            order.status === 'SHIPPING' || 
+            order.status === 'COMPLETED' || 
+            order.paymentStatus?.includes('ĐÃ THANH TOÁN')
+          )) {
+            handlePaymentSuccess()
+          }
+        } catch (err) {
+          console.error('Error polling order status:', err)
+        }
+      }
+
+      // Run immediately, then repeat every 3 seconds
+      checkPaymentStatus()
+      pollInterval = setInterval(checkPaymentStatus, 3000)
 
       return () => {
-        eventSource.close()
+        isCleared = true
+        if (eventSource) eventSource.close()
+        if (pollInterval) clearInterval(pollInterval)
       }
     }
-  }, [statusParam, orderIdParam])
+  }, [statusParam, orderIdParam, router])
 
   useEffect(() => {
     if (!canLoadCheckoutData) {
