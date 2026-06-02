@@ -21,7 +21,7 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-const productApiBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/products` : process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
+const productApiBase = process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
 const CHAT_API_URL = `${productApiBase}/api/v1/ai/chat/stream`;
 
 export function useStreamChat() {

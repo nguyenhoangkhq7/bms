@@ -2,9 +2,9 @@ spring:
   application:
     name: report-service
   datasource:
-    url: ${REPORT_DB_URL:jdbc:postgresql://postgres:5432/report_db}
-    username: ${REPORT_DB_USER:report_db}
-    password: ${REPORT_DB_PASSWORD:report_db}
+    url: ${SPRING_DATASOURCE_URL:${REPORT_DB_URL:jdbc:postgresql://postgres:5432/report_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:${REPORT_DB_USER:report_db}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${REPORT_DB_PASSWORD:report_db}}
   jpa:
     hibernate:
       ddl-auto: update
