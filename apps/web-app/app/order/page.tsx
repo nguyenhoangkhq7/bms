@@ -184,7 +184,7 @@ export default function OrdersDashboardPage() {
     if (isSuccessStatus && orderIdParam && isSignedIn) {
       toast.loading('Đang kết nối tới cổng thanh toán để chờ xác thực chuyển khoản...', { id: 'repayment-validation' })
 
-      let sseBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL
+      let sseBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/orders` : process.env.NEXT_PUBLIC_ORDER_SERVICE_URL
       if (!sseBase) {
         const protocol = window.location.protocol
         const host = window.location.hostname

@@ -1,6 +1,6 @@
 // src/api/apiConfig.ts
 
-const productApiBase = process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
+const productApiBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/products` : process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
 export const BASE_URL = `${productApiBase}/api/books`;
 export const HYBRID_SEARCH_URL = `${productApiBase}/api/v1/books/hybrid-search`;
 

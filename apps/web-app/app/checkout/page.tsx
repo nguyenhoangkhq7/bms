@@ -159,7 +159,7 @@ export default function CheckoutPage() {
       setSseStatus('PENDING')
       setSseMessage('Đang kết nối tới cổng thanh toán để chờ xác thực chuyển khoản...')
 
-      let sseBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL
+      let sseBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/orders` : process.env.NEXT_PUBLIC_ORDER_SERVICE_URL
       if (!sseBase) {
         const protocol = window.location.protocol
         const host = window.location.hostname

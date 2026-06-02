@@ -50,7 +50,7 @@ export interface TopBook {
   totalRevenue: number;
 }
 
-const reportApiBase = process.env.NEXT_PUBLIC_REPORT_SERVICE_URL || 'http://localhost/api/v1/reports';
+const reportApiBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/reports` : process.env.NEXT_PUBLIC_REPORT_SERVICE_URL || 'http://localhost/api/v1/reports';
 const REPORT_BASE_URL = `${reportApiBase}/api/reports`;
 
 // Timeout 30 giây cho mỗi request — đủ cho cold start của JVM
