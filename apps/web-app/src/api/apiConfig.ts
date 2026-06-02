@@ -1,7 +1,8 @@
 // src/api/apiConfig.ts
 
-export const BASE_URL = 'http://localhost/api/v1/products/api/books'; // Nhớ đổi port nếu backend chạy port khác
-export const HYBRID_SEARCH_URL = 'http://localhost/api/v1/products/api/v1/books/hybrid-search';
+const productApiBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/products` : process.env.NEXT_PUBLIC_PRODUCT_SERVICE_URL || 'http://localhost/api/v1/products';
+export const BASE_URL = `${productApiBase}/api/books`;
+export const HYBRID_SEARCH_URL = `${productApiBase}/api/v1/books/hybrid-search`;
 
 // Hàm dùng chung để xử lý lỗi và convert data sang JSON
 export const handleResponse = async <T>(response: Response): Promise<T | null> => {
@@ -21,3 +22,20 @@ export const handleResponse = async <T>(response: Response): Promise<T | null> =
     if (response.status === 204) return null;
     return response.json() as Promise<T>;
 };
+
+export const apiFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const urlString = typeof input === 'string' ? input : input.toString();
+    const headers = { ...init?.headers } as Record<string, string>;
+    
+    // Only inject ngrok skip header for our own API endpoints to avoid CORS preflight issues on external APIs
+    if (!urlString.includes('provinces.open-api.vn')) {
+        headers['ngrok-skip-browser-warning'] = 'true';
+    }
+
+    const customInit = {
+        ...init,
+        headers
+    };
+    return fetch(input, customInit);
+};
+

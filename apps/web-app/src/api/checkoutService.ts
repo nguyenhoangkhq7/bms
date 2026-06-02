@@ -1,10 +1,10 @@
 import axios from 'axios'
 import type { CheckoutRequest, CheckoutPreviewResponse, CheckoutResponse } from '@/src/checkout/types'
 
-const configuredBase = process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || process.env.BACKEND_API_BASE_URL
+const configuredBase = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/orders` : process.env.NEXT_PUBLIC_ORDER_SERVICE_URL || process.env.BACKEND_API_BASE_URL
 const DEFAULT_BASES = ['http://localhost/api/v1/orders']
 const BACKEND_BASE_CANDIDATES = Array.from(
-  new Set([...DEFAULT_BASES, ...(configuredBase ? [configuredBase] : [])])
+  new Set([...(configuredBase ? [configuredBase] : []), ...DEFAULT_BASES])
 )
 const FALLBACK_STATUSES = new Set([404, 502, 503, 504])
 
@@ -54,7 +54,10 @@ async function postWithRetry(url: string, body: any, headers: Record<string, str
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const headers: Record<string, string> = { 
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
+  }
   if (token) headers['Authorization'] = `Bearer ${token}`
   return headers
 }
@@ -76,7 +79,7 @@ export async function previewOrder(payload: CheckoutRequest): Promise<CheckoutPr
         const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
         const isLastUrl = j === previewUrls.length - 1
         if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
-        if (err.response && isLastBase && isLastUrl) throw err
+        if (err.response) throw err
       }
     }
   }
@@ -100,7 +103,276 @@ export async function submitOrder(payload: CheckoutRequest): Promise<CheckoutRes
         const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
         const isLastUrl = j === submitUrls.length - 1
         if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
-        if (err.response && isLastBase && isLastUrl) throw err
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function getOrders(): Promise<CheckoutResponse[]> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = submitUrls[j]
+      try {
+        const res = await axios.get(url, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function getOrderById(id: number | string): Promise<CheckoutResponse> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = `${submitUrls[j]}/${id}`
+      try {
+        const res = await axios.get(url, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function cancelOrder(id: number | string): Promise<CheckoutResponse> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = `${submitUrls[j]}/${id}/cancel`
+      try {
+        const res = await axios.post(url, {}, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function changeOrderPaymentMethod(
+  id: number | string,
+  paymentMethod: string,
+  returnUrl?: string,
+  cancelUrl?: string
+): Promise<CheckoutResponse> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = `${submitUrls[j]}/${id}/payment-method`
+      try {
+        const res = await axios.put(url, null, {
+          headers,
+          params: { paymentMethod, returnUrl, cancelUrl }
+        })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function confirmOrder(id: number | string): Promise<CheckoutResponse> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = `${submitUrls[j]}/${id}/confirm`
+      try {
+        const res = await axios.post(url, {}, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function updateShippingFee(id: number | string, shippingFee: number): Promise<CheckoutResponse> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const { submitUrls } = buildOrderApiCandidates(base)
+    for (let j = 0; j < submitUrls.length; j++) {
+      const url = `${submitUrls[j]}/${id}/shipping-fee`
+      try {
+        const res = await axios.put(url, null, {
+          headers,
+          params: { shippingFee }
+        })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === submitUrls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+function buildShippingRulesUrlCandidates(base: string) {
+  const normalized = trimSlash(base)
+  if (normalized.endsWith('/orders')) {
+    return [normalized.replace(/\/orders$/, '/shipping-rules')]
+  }
+  return [
+    `${normalized}/api/shipping-rules`,
+    `${normalized}/shipping-rules`
+  ]
+}
+
+export interface ShippingRule {
+  id?: number
+  minDistance: number
+  maxDistance: number | null
+  fee: number
+}
+
+export async function getShippingRules(): Promise<ShippingRule[]> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const urls = buildShippingRulesUrlCandidates(base)
+    for (let j = 0; j < urls.length; j++) {
+      const url = urls[j]
+      try {
+        const res = await axios.get(url, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === urls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function createShippingRule(rule: ShippingRule): Promise<ShippingRule> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const urls = buildShippingRulesUrlCandidates(base)
+    for (let j = 0; j < urls.length; j++) {
+      const url = urls[j]
+      try {
+        const res = await axios.post(url, rule, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === urls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function updateShippingRule(id: number | string, rule: ShippingRule): Promise<ShippingRule> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const urls = buildShippingRulesUrlCandidates(base)
+    for (let j = 0; j < urls.length; j++) {
+      const url = `${urls[j]}/${id}`
+      try {
+        const res = await axios.put(url, rule, { headers })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === urls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
+      }
+    }
+  }
+  throw lastError
+}
+
+export async function deleteShippingRule(id: number | string): Promise<void> {
+  let lastError: any = null
+  const headers = getAuthHeaders()
+
+  for (let i = 0; i < BACKEND_BASE_CANDIDATES.length; i++) {
+    const base = BACKEND_BASE_CANDIDATES[i]
+    const urls = buildShippingRulesUrlCandidates(base)
+    for (let j = 0; j < urls.length; j++) {
+      const url = `${urls[j]}/${id}`
+      try {
+        await axios.delete(url, { headers })
+        return
+      } catch (err: any) {
+        lastError = err
+        const isLastBase = i === BACKEND_BASE_CANDIDATES.length - 1
+        const isLastUrl = j === urls.length - 1
+        if (FALLBACK_STATUSES.has(err.response?.status) && (!isLastBase || !isLastUrl)) continue
+        if (err.response) throw err
       }
     }
   }

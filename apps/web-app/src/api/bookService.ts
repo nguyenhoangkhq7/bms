@@ -1,20 +1,21 @@
+import { apiFetch } from './apiConfig';
 // src/api/bookService.ts
 import { BASE_URL, HYBRID_SEARCH_URL, handleResponse } from './apiConfig';
 import type { Book, BookCreateRequest, BookUpdateRequest } from '@/src/types';
 
 export const bookService = {
     getAllBooks: async (): Promise<Book[]> => {
-        const response = await fetch(BASE_URL);
+        const response = await apiFetch(BASE_URL);
         return (await handleResponse<Book[]>(response)) ?? [];
     },
 
     getBookById: async (id: number): Promise<Book | null> => {
-        const response = await fetch(`${BASE_URL}/${id}`);
+        const response = await apiFetch(`${BASE_URL}/${id}`);
         return await handleResponse<Book>(response);
     },
 
     createBook: async (bookData: BookCreateRequest): Promise<Book | null> => {
-        const response = await fetch(BASE_URL, {
+        const response = await apiFetch(BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bookData),
@@ -23,7 +24,7 @@ export const bookService = {
     },
 
     updateBook: async (id: number, bookData: BookUpdateRequest): Promise<Book | null> => {
-        const response = await fetch(`${BASE_URL}/${id}`, {
+        const response = await apiFetch(`${BASE_URL}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bookData),
@@ -32,7 +33,7 @@ export const bookService = {
     },
 
     deleteBook: async (id: number): Promise<null> => {
-        const response = await fetch(`${BASE_URL}/${id}`, {
+        const response = await apiFetch(`${BASE_URL}/${id}`, {
             method: 'DELETE',
         });
         return await handleResponse<null>(response);
@@ -62,7 +63,8 @@ export const bookService = {
             url.searchParams.set('maxPrice', options.maxPrice);
         }
 
-        const response = await fetch(url.toString());
+        const response = await apiFetch(url.toString());
         return (await handleResponse<Book[]>(response)) ?? [];
     }
 };
+

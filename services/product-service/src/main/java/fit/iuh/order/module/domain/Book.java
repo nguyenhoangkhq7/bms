@@ -38,7 +38,7 @@ public class Book {
     private String description;
 
     @Transient
-    @Column(name = "embedding", columnDefinition = "vector(768)")
+    @Column(name = "embedding", columnDefinition = "vector(1024)")
     private float[] embedding;
 
     @Column(name = "image_url", length = 500)
@@ -53,6 +53,9 @@ public class Book {
 
     @Column(name = "parent_category_id")
     private Long parentCategoryId;
+
+    @Column(name = "is_deleted", columnDefinition = "boolean default false")
+    private Boolean isDeleted = false;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookImage> secondaryImages = new ArrayList<>();
