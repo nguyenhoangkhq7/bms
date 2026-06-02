@@ -190,6 +190,8 @@ services:
     volumes:
       - ./gateway/nginx.prod.conf:/etc/nginx/nginx.conf:ro
 
+
+
   ai-engine-gpu:
     image: ollama/ollama:0.30.0-rc12
     container_name: bookstore-ai-engine-gpu

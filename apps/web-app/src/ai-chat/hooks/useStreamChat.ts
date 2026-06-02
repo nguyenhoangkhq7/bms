@@ -93,8 +93,10 @@ export function useStreamChat() {
           if (!line.trim() || line.startsWith(':')) continue;
 
           let rawData = line;
-          if (line.startsWith('data:')) {
-            rawData = line.slice(5); // Giữ nguyên khoảng trống đầu và cuối của token thô
+          if (line.startsWith('data: ')) {
+            rawData = line.slice(6);
+          } else if (line.startsWith('data:')) {
+            rawData = line.slice(5);
           }
 
           if (rawData === '[DONE]') continue;
