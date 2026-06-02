@@ -57,11 +57,11 @@ const REPORT_BASE_URL = `${reportApiBase}/api/reports`;
 // Timeout 30 giây cho mỗi request — đủ cho cold start của JVM
 const FETCH_TIMEOUT_MS = 30_000;
 
-async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(url: string, options?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await apiFetch(url, { signal: controller.signal });
+    const response = await apiFetch(url, { ...options, signal: controller.signal });
     if (!response.ok) {
       const body = await response.text().catch(() => '');
       throw new Error(body || `HTTP ${response.status} khi gọi ${url}`);
@@ -116,6 +116,11 @@ export const reportService = {
   async getTopBooks(limit = 5): Promise<TopBook[]> {
     const response = await fetchWithTimeout(`${REPORT_BASE_URL}/top-books?limit=${limit}`);
     return response.json() as Promise<TopBook[]>;
+  },
+
+  async syncData(): Promise<{ status: string; totalCompletedOrders: number; syncedOrders: number; message: string }> {
+    const response = await fetchWithTimeout(`${REPORT_BASE_URL}/sync`, { method: 'POST' });
+    return response.json() as Promise<{ status: string; totalCompletedOrders: number; syncedOrders: number; message: string }>;
   },
 };
 

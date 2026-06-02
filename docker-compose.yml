@@ -165,6 +165,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/report_db
       - SPRING_DATASOURCE_USERNAME=report_db
       - SPRING_DATASOURCE_PASSWORD=report_db
+      - ORDER_SERVICE_URL=http://order-service:8083
     networks:
       - bookstore-network
 

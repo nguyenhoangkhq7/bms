@@ -43,6 +43,7 @@ export default function AdminReportsPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
 
   // Helper: fetch with retry for cold-start resilience
@@ -152,9 +153,32 @@ export default function AdminReportsPage() {
     void loadData();
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
+    try {
+      await reportService.syncData();
+    } catch (e) {
+      console.warn('Đồng bộ tự động khi làm mới thất bại:', e);
+    }
     void loadData();
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError('');
+    try {
+      const res = await reportService.syncData();
+      if (res && res.status === 'SUCCESS') {
+        alert(`Đồng bộ thành công! Tìm thấy ${res.totalCompletedOrders} đơn hàng đã hoàn tất, đã cập nhật thêm ${res.syncedOrders} đơn mới vào báo cáo.`);
+        void loadData();
+      } else {
+        setError(res?.message || 'Lỗi đồng bộ dữ liệu');
+      }
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : 'Không thể kết nối để đồng bộ dữ liệu.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const formatVND = (value: number) => {
@@ -340,6 +364,23 @@ export default function AdminReportsPage() {
           >
             <Download size={15} />
             Xuất báo cáo (CSV)
+          </button>
+
+          <button 
+            onClick={handleSync} 
+            disabled={syncing}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px', border: '1px solid #3b82f6',
+              borderRadius: 10, background: '#3b82f6', color: '#fff',
+              fontWeight: 600, cursor: 'pointer', fontSize: 14,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              transition: 'all 0.15s'
+            }}
+            className="action-btn"
+          >
+            <RefreshCw size={15} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+            Đồng bộ đơn hàng
           </button>
 
           <button 
