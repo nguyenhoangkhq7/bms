@@ -506,10 +506,12 @@ function HomeContent() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filteredBooks.map((book) => {
                 const bookImage = book.imageUrl || book.image || (book.images && book.images.length > 0 ? book.images[0].imageUrl : null);
-                const bookRating = book.rating ?? (book.reviews && book.reviews.length > 0 
-                  ? (book.reviews.reduce((sum, r) => sum + r.rating, 0) / book.reviews.length) 
+                const bookRating = book.rating ?? (book.reviews && book.reviews.length > 0
+                  ? (book.reviews.reduce((sum, r) => sum + r.rating, 0) / book.reviews.length)
                   : 0);
-                const categoryName = book.category?.name || '';
+                const reviewCount = book.reviews?.length || 0;
+                const isInStock = book.stockQuantity === undefined || book.stockQuantity === null || book.stockQuantity > 0;
+                const isAddingThis = addToCartLoading && pendingBookId === book.id;
 
                 return (
                   <div
@@ -530,62 +532,55 @@ function HomeContent() {
                           <BookOpen className="h-12 w-12 text-slate-300" />
                         </div>
                       )}
-                      {/* Category Badge */}
-                      {categoryName && (
-                        <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
-                          {categoryName}
-                        </span>
-                      )}
                     </Link>
 
                     {/* Book Info */}
-                    <div className="flex flex-1 flex-col p-3.5">
+                    <div className="flex flex-1 flex-col p-3">
                       <Link href={`/detail/${book.id}`}>
-                        <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-slate-950">
+                        <h3 className="mb-0.5 line-clamp-2 text-sm font-semibold leading-snug text-slate-800 transition-colors hover:text-slate-950">
                           {book.title}
                         </h3>
                       </Link>
                       <p className="mb-2 text-xs text-slate-500">{book.author}</p>
 
-                      {/* Rating */}
-                      {bookRating > 0 && (
-                        <div className="mb-2 flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              size={12}
-                              className={i < Math.round(bookRating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
-                            />
-                          ))}
-                          <span className="ml-1 text-[10px] text-slate-400">
-                            ({book.reviews?.length || 0})
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Price + Add to Cart */}
-                      <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-                        <div>
-                          <p className="text-base font-bold text-slate-900">
-                            {Number(book.price).toLocaleString('vi-VN')}₫
-                          </p>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleAddToCart(book.id);
-                          }}
-                          disabled={addToCartLoading && pendingBookId === book.id}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-all hover:bg-slate-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
-                          title="Thêm vào giỏ hàng"
-                        >
-                          {addToCartLoading && pendingBookId === book.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <span className="text-sm font-bold">+</span>
-                          )}
-                        </button>
+                      {/* Rating — always shown */}
+                      <div className="mb-2 flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={11}
+                            className={i < Math.round(bookRating) ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'}
+                          />
+                        ))}
+                        <span className="ml-1 text-[10px] text-slate-400">({reviewCount})</span>
                       </div>
+
+                      {/* Price */}
+                      <p className="mb-1.5 text-base font-bold text-red-600">
+                        đ{Number(book.price).toLocaleString('vi-VN')}
+                      </p>
+
+                      {/* Stock status */}
+                      <p className={`mb-3 text-xs font-medium ${isInStock ? 'text-green-600' : 'text-red-500'}`}>
+                        {isInStock ? 'Còn hàng' : 'Hết hàng'}
+                      </p>
+
+                      {/* Add to cart button — full width */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleAddToCart(book.id);
+                        }}
+                        disabled={isAddingThis || !isInStock}
+                        className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2 text-xs font-semibold text-white transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isAddingThis ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <ShoppingCart size={13} />
+                        )}
+                        {isAddingThis ? 'Đang thêm...' : 'Thêm vào giỏ'}
+                      </button>
                     </div>
                   </div>
                 );

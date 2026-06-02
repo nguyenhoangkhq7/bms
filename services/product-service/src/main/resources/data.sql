@@ -139,8 +139,8 @@ SELECT setval(pg_get_serial_sequence('categories', 'id'), coalesce(max(id), 1), 
 -- 4. Semantic search setup and book seed data
 CREATE EXTENSION IF NOT EXISTS vector;
 DROP INDEX IF EXISTS books_embedding_hnsw_idx;
-ALTER TABLE books ADD COLUMN IF NOT EXISTS embedding vector(1024);
-ALTER TABLE books ALTER COLUMN embedding TYPE vector(1024) USING embedding::vector(1024);
+ALTER TABLE books DROP COLUMN IF EXISTS embedding;
+ALTER TABLE books ADD COLUMN embedding vector(1024);
 ALTER TABLE books ADD COLUMN IF NOT EXISTS fts_tokens tsvector;
 
 CREATE INDEX IF NOT EXISTS books_embedding_hnsw_idx
